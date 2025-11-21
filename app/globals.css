@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+  /* Cố định màu nền là Trắng tuyệt đối */
+  --background: #ffffff;
+  
+  /* Cố định màu chữ là Đen (hoặc xám đậm để dịu mắt hơn) */
+  --foreground: #171717; 
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Đã XÓA đoạn @media (prefers-color-scheme: dark) 
+   để giao diện không tự chuyển sang màu tối.
+*/
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  
+  /* Thêm antialiased để chữ hiển thị mượt hơn trên nền trắng */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
