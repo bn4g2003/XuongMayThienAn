@@ -27,9 +27,28 @@ export const AppThemeProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  // Load settings từ localStorage (nếu muốn lưu lại)
-  const [mode, setMode] = useState<"light" | "dark">("dark");
-  const [themeName, setThemeName] = useState<ThemeName>("default");
+  // Load settings từ localStorage - sử dụng lazy initialization
+  const [mode, setMode] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      const savedMode = localStorage.getItem("theme-mode");
+      return (savedMode as "light" | "dark") || "dark";
+    }
+    return "dark";
+  });
+
+  const [themeName, setThemeName] = useState<ThemeName>(() => {
+    if (typeof window !== "undefined") {
+      const savedThemeName = localStorage.getItem("theme-name");
+      return (savedThemeName as ThemeName) || "default";
+    }
+    return "default";
+  });
+
+  // Save theme to localStorage khi thay đổi
+  useEffect(() => {
+    localStorage.setItem("theme-mode", mode);
+    localStorage.setItem("theme-name", themeName);
+  }, [mode, themeName]);
 
   // 1. Đồng bộ với Tailwind (DOM & CSS Variables)
   useEffect(() => {
@@ -89,8 +108,8 @@ export const AppThemeProvider = ({
               headerBg: mode === "dark" ? "#27272a" : "#ffffff",
               footerBg: mode === "dark" ? "#27272a" : "#ffffff",
               siderBg: mode === "dark" ? "#27272a" : "#ffffff",
-              triggerBg:
-                mode === "dark" ? baseThemeTokens.colorPrimary : "#ffffff",
+              triggerBg: mode === "dark" ? "#27272a" : "#ffffff",
+              triggerColor: baseThemeTokens.colorPrimary,
               headerPadding: "0 24px",
             },
           },

@@ -35,8 +35,9 @@ INSERT INTO permissions (permission_code, permission_name, module, description) 
 ('purchasing.orders', 'Quản lý đơn mua', 'purchasing', 'Xem, tạo, sửa, xóa đơn mua'),
 
 -- Finance module
-('finance.cashbook', 'Quản lý sổ quỹ', 'finance', 'Xem, thêm, sửa, xóa phiếu thu/chi'),
-('finance.debt', 'Quản lý công nợ', 'finance', 'Xem, thêm, thanh toán công nợ'),
+('finance.categories', 'Quản lý danh mục tài chính', 'finance', 'Xem, thêm, sửa, xóa danh mục thu/chi'),
+('finance.cashbooks', 'Quản lý sổ quỹ', 'finance', 'Xem, thêm, sửa, xóa phiếu thu/chi'),
+('finance.debts', 'Quản lý công nợ', 'finance', 'Xem, thêm, thanh toán công nợ'),
 ('finance.reports', 'Báo cáo tài chính', 'finance', 'Xem báo cáo tài chính')
 ON CONFLICT (permission_code) DO UPDATE SET
   permission_name = EXCLUDED.permission_name,

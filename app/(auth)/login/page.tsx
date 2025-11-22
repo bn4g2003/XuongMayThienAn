@@ -78,7 +78,7 @@ export default function LoginPage() {
           boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
         }}
       >
-        <Space direction="vertical" size="large" style={{ width: "100%" }}>
+        <Space vertical size="large" style={{ width: "100%" }}>
           <div style={{ textAlign: "center" }}>
             <Title level={2} style={{ marginBottom: 8 }}>
               Đăng nhập hệ thống

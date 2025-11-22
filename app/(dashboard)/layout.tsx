@@ -32,6 +32,7 @@ import {
   MoonOutlined,
 } from "@ant-design/icons";
 import { themeColors } from "@/configs/theme";
+import Loader from "@/components/Loader";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -134,13 +135,17 @@ export default function DashboardLayout({
       "/sales/reports": "Báo cáo bán hàng",
       "/purchasing/suppliers": "Nhà cung cấp",
       "/purchasing/orders": "Đơn đặt hàng",
-      "/finance/cash-books": "Sổ quỹ",
+      "/finance/categories": "Danh mục tài chính",
+      "/finance/bank-accounts": "Tài khoản ngân hàng",
+      "/finance/cashbooks": "Sổ quỹ",
       "/finance/debts": "Công nợ",
       "/finance/reports": "Báo cáo tài chính",
     };
 
+    // Kiểm tra exact match
     if (breadcrumbMap[path]) return breadcrumbMap[path];
 
+    // Kiểm tra dynamic routes (có /[id]/)
     for (const [key, value] of Object.entries(breadcrumbMap)) {
       if (path.startsWith(key + "/")) {
         return value;
@@ -160,7 +165,7 @@ export default function DashboardLayout({
           justifyContent: "center",
         }}
       >
-        <Spin size="large" tip="Đang tải..." />
+        <Loader />
       </div>
     );
   }
@@ -231,7 +236,7 @@ export default function DashboardLayout({
       title: "Kho",
       icon: <InboxOutlined />,
       permission: "inventory.balance",
-      children: [],
+      children: [], // Sẽ được thêm động từ API
     },
     {
       title: "Bán hàng",
@@ -274,6 +279,16 @@ export default function DashboardLayout({
       title: "Tài chính",
       icon: <DollarOutlined />,
       children: [
+        {
+          title: "Danh mục tài chính",
+          href: "/finance/categories",
+          permission: "finance.categories",
+        },
+        {
+          title: "Tài khoản ngân hàng",
+          href: "/finance/bank-accounts",
+          permission: "finance.cashbooks",
+        },
         {
           title: "Sổ quỹ",
           href: "/finance/cashbooks",
@@ -481,7 +496,7 @@ export default function DashboardLayout({
             Cam
           </span>
           {themeName === "default" && (
-            <CheckOutlined style={{ color: "#52c41a" }} />
+            <CheckOutlined style={{ color: token.colorPrimary }} />
           )}
         </div>
       ),
@@ -512,7 +527,7 @@ export default function DashboardLayout({
             Xanh dương
           </span>
           {themeName === "blue" && (
-            <CheckOutlined style={{ color: "#52c41a" }} />
+            <CheckOutlined style={{ color: token.colorPrimary }} />
           )}
         </div>
       ),
@@ -543,7 +558,7 @@ export default function DashboardLayout({
             Vàng
           </span>
           {themeName === "yellow" && (
-            <CheckOutlined style={{ color: "#52c41a" }} />
+            <CheckOutlined style={{ color: token.colorPrimary }} />
           )}
         </div>
       ),
@@ -574,7 +589,7 @@ export default function DashboardLayout({
             Hồng
           </span>
           {themeName === "pink" && (
-            <CheckOutlined style={{ color: "#52c41a" }} />
+            <CheckOutlined style={{ color: token.colorPrimary }} />
           )}
         </div>
       ),
@@ -684,8 +699,8 @@ export default function DashboardLayout({
         <Content
           style={{
             margin: "10px",
-            paddingTop: 5,
             padding: 20,
+            paddingTop: 2,
             background: token.colorBgContainer,
             minHeight: 280,
             borderRadius: token.borderRadius,
