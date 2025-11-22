@@ -1,84 +1,151 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Form,
+  Input,
+  Button,
+  Card,
+  Typography,
+  Alert,
+  Space,
+  Dropdown,
+  Tooltip,
+} from "antd";
+import type { MenuProps } from "antd";
+import {
+  UserOutlined,
+  LockOutlined,
+  LoginOutlined,
+  SettingOutlined,
+  CheckOutlined,
+} from "@ant-design/icons";
+import { useTheme } from "@/providers/AppThemeProvider";
+import { themeColors } from "@/configs/theme";
+
+const { Title } = Typography;
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm();
+  const { mode, themeName, setMode, setThemeName } = useTheme();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const handleSubmit = async (values: {
+    username: string;
+    password: string;
+  }) => {
+    setError("");
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
       });
 
       const data = await res.json();
 
       if (data.success) {
-        router.push('/dashboard');
+        router.push("/dashboard");
       } else {
-        setError(data.error || 'Đăng nhập thất bại');
+        setError(data.error || "Đăng nhập thất bại");
       }
-    } catch (err) {
-      setError('Lỗi kết nối server');
+    } catch {
+      setError("Lỗi kết nối server");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center mb-6">Đăng nhập hệ thống</h1>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Tên đăng nhập</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        position: "relative",
+      }}
+    >
+      <Card
+        style={{
+          width: "100%",
+          maxWidth: 400,
+          boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+        }}
+      >
+        <Space direction="vertical" size="large" style={{ width: "100%" }}>
+          <div style={{ textAlign: "center" }}>
+            <Title level={2} style={{ marginBottom: 8 }}>
+              Đăng nhập hệ thống
+            </Title>
+            <Typography.Text type="secondary">
+              Nhập thông tin để truy cập hệ thống
+            </Typography.Text>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Mật khẩu</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+          <Form
+            form={form}
+            onFinish={handleSubmit}
+            layout="vertical"
+            size="large"
+            autoComplete="off"
           >
-            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-          </button>
-        </form>
-      </div>
+            <Form.Item
+              name="username"
+              label="Tên đăng nhập"
+              rules={[
+                { required: true, message: "Vui lòng nhập tên đăng nhập!" },
+              ]}
+            >
+              <Input
+                prefix={<UserOutlined />}
+                placeholder="Nhập tên đăng nhập"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="password"
+              label="Mật khẩu"
+              rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
+            >
+              <Input.Password
+                prefix={<LockOutlined />}
+                placeholder="Nhập mật khẩu"
+              />
+            </Form.Item>
+
+            {error && (
+              <Form.Item>
+                <Alert
+                  message={error}
+                  type="error"
+                  showIcon
+                  closable
+                  onClose={() => setError("")}
+                />
+              </Form.Item>
+            )}
+
+            <Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                icon={<LoginOutlined />}
+                block
+                size="large"
+              >
+                {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+              </Button>
+            </Form.Item>
+          </Form>
+        </Space>
+      </Card>
     </div>
   );
 }

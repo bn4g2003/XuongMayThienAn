@@ -9,12 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.1.0",
+    "antd": "^6.0.0",
     "cookie": "^1.0.2",
     "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.554.0",
     "next": "16.0.3",
+    "normalize.css": "^8.0.1",
     "pg": "^8.16.3",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
