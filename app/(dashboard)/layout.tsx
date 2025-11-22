@@ -101,7 +101,9 @@ export default function DashboardLayout({
       '/sales/reports': 'Báo cáo bán hàng',
       '/purchasing/suppliers': 'Nhà cung cấp',
       '/purchasing/orders': 'Đơn đặt hàng',
-      '/finance/cash-books': 'Sổ quỹ',
+      '/finance/categories': 'Danh mục tài chính',
+      '/finance/bank-accounts': 'Tài khoản ngân hàng',
+      '/finance/cashbooks': 'Sổ quỹ',
       '/finance/debts': 'Công nợ',
       '/finance/reports': 'Báo cáo tài chính',
     };
@@ -186,6 +188,8 @@ export default function DashboardLayout({
       title: 'Tài chính',
       icon: '💰',
       children: [
+        { title: 'Danh mục tài chính', href: '/finance/categories', permission: 'finance.categories' },
+        { title: 'Tài khoản ngân hàng', href: '/finance/bank-accounts', permission: 'finance.cashbooks' },
         { title: 'Sổ quỹ', href: '/finance/cashbooks', permission: 'finance.cashbooks' },
         { title: 'Công nợ', href: '/finance/debts', permission: 'finance.debts' },
         { title: 'Báo cáo', href: '/finance/reports', permission: 'finance.reports' },
