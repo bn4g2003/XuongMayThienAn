@@ -1,10 +1,13 @@
 import { AppThemeProvider } from "@/providers/AppThemeProvider";
+import ReactQueryProvider from "@/providers/ReactQueryProvider";
 import React from "react";
 
 const AppContext = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
-      <AppThemeProvider>{children}</AppThemeProvider>
+      <ReactQueryProvider>
+        <AppThemeProvider>{children}</AppThemeProvider>
+      </ReactQueryProvider>
     </>
   );
 };

@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { ConfigProvider, theme as antdTheme } from "antd";
 import { themeColors, ThemeName, getThemeTokens } from "@/configs/theme";
-import Loader from "@/components/Loader";
+import LoaderApp from "@/components/LoaderApp";
+import vi from "antd/locale/vi_VN";
 
 // Context để các component con có thể gọi hàm chuyển theme
 type ThemeContextType = {
@@ -91,8 +92,12 @@ export const AppThemeProvider = ({
   return (
     <ThemeContext.Provider value={{ mode, themeName, setMode, setThemeName }}>
       <ConfigProvider
+        locale={vi}
         spin={{
-          indicator: <Loader />,
+          indicator: <LoaderApp />,
+        }}
+        input={{
+          autoComplete: "off",
         }}
         theme={{
           algorithm:

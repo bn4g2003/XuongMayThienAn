@@ -1,14 +1,14 @@
 import { cn } from "@/utils/cn";
 import { Compass } from "lucide-react";
 
-interface LoaderProps {
+interface LoaderAppProps {
   className?: string;
   style?: React.CSSProperties;
   full?: boolean;
   space?: string;
 }
 
-const Loader = ({ className, style, full, space }: LoaderProps) => {
+const LoaderApp = ({ className, style, full, space }: LoaderAppProps) => {
   const fullClass = full
     ? "absolute inset-0 flex items-center justify-center"
     : "";
@@ -36,4 +36,4 @@ const Loader = ({ className, style, full, space }: LoaderProps) => {
   );
 };
 
-export default Loader;
+export default LoaderApp;

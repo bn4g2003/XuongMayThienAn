@@ -37,3 +37,18 @@ export interface ApiResponse<T = any> {
   message?: string;
   error?: string;
 }
+
+
+export interface FilterField {
+  type: "input" | "select" | "date" | "dateRange";
+  name: string;
+  label: string;
+  placeholder?: string;
+  options?: { label: string; value: string | number | boolean }[];
+}
+
+export interface ColumnSetting {
+  key: string;
+  title: string;
+  visible: boolean;
+}

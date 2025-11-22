@@ -13,26 +13,22 @@ import {
   Typography,
   Dropdown,
   Tag,
-  Spin,
   theme,
 } from "antd";
 import type { MenuProps } from "antd";
 import {
   DashboardOutlined,
-  SettingOutlined,
   UserOutlined,
-  InboxOutlined,
-  AppstoreOutlined,
-  ShoppingCartOutlined,
-  ShoppingOutlined,
-  DollarOutlined,
   LogoutOutlined,
-  CheckOutlined,
   SunOutlined,
   MoonOutlined,
+  DoubleRightOutlined,
 } from "@ant-design/icons";
 import { themeColors } from "@/configs/theme";
-import Loader from "@/components/Loader";
+import LoaderApp from "@/components/LoaderApp";
+import { allMenuItems } from "@/configs/menu";
+import ItemColorTheme from "@/components/ItemColorTheme";
+import { useSiteTitleStore } from "@/stores/setSiteTitle";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -58,6 +54,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const titlePage = useSiteTitleStore((state) => state.title);
   const router = useRouter();
   const pathname = usePathname();
   const { can } = usePermissions();
@@ -165,148 +162,10 @@ export default function DashboardLayout({
           justifyContent: "center",
         }}
       >
-        <Loader />
+        <LoaderApp />
       </div>
     );
   }
-
-  const allMenuItems: Array<{
-    title: string;
-    icon: React.ReactNode;
-    href?: string;
-    permission?: string | null;
-    children?: Array<{
-      title: string;
-      href: string;
-      permission?: string;
-      warehouseType?: "NVL" | "THANH_PHAM";
-      warehouseCode?: string;
-    }>;
-  }> = [
-    {
-      title: "Dashboard",
-      href: "/dashboard",
-      icon: <DashboardOutlined />,
-      permission: null,
-    },
-    {
-      title: "Quản trị",
-      icon: <SettingOutlined />,
-      children: [
-        {
-          title: "Người dùng",
-          href: "/admin/users",
-          permission: "admin.users",
-        },
-        { title: "Vai trò", href: "/admin/roles", permission: "admin.roles" },
-        {
-          title: "Chi nhánh",
-          href: "/admin/branches",
-          permission: "admin.branches",
-        },
-        {
-          title: "Kho hàng",
-          href: "/admin/warehouses",
-          permission: "admin.warehouses",
-        },
-      ],
-    },
-    {
-      title: "Sản phẩm",
-      icon: <AppstoreOutlined />,
-      children: [
-        {
-          title: "Danh mục",
-          href: "/products/categories",
-          permission: "products.categories",
-        },
-        {
-          title: "Sản phẩm",
-          href: "/products",
-          permission: "products.products",
-        },
-        {
-          title: "Nguyên vật liệu",
-          href: "/products/materials",
-          permission: "products.materials",
-        },
-      ],
-    },
-    {
-      title: "Kho",
-      icon: <InboxOutlined />,
-      permission: "inventory.balance",
-      children: [], // Sẽ được thêm động từ API
-    },
-    {
-      title: "Bán hàng",
-      icon: <ShoppingCartOutlined />,
-      children: [
-        {
-          title: "Khách hàng",
-          href: "/sales/customers",
-          permission: "sales.customers",
-        },
-        {
-          title: "Đơn hàng",
-          href: "/sales/orders",
-          permission: "sales.orders",
-        },
-        {
-          title: "Báo cáo",
-          href: "/sales/reports",
-          permission: "sales.reports",
-        },
-      ],
-    },
-    {
-      title: "Mua hàng",
-      icon: <ShoppingOutlined />,
-      children: [
-        {
-          title: "Nhà cung cấp",
-          href: "/purchasing/suppliers",
-          permission: "purchasing.suppliers",
-        },
-        {
-          title: "Đơn đặt hàng",
-          href: "/purchasing/orders",
-          permission: "purchasing.orders",
-        },
-      ],
-    },
-    {
-      title: "Tài chính",
-      icon: <DollarOutlined />,
-      children: [
-        {
-          title: "Danh mục tài chính",
-          href: "/finance/categories",
-          permission: "finance.categories",
-        },
-        {
-          title: "Tài khoản ngân hàng",
-          href: "/finance/bank-accounts",
-          permission: "finance.cashbooks",
-        },
-        {
-          title: "Sổ quỹ",
-          href: "/finance/cashbooks",
-          permission: "finance.cashbooks",
-        },
-        {
-          title: "Công nợ",
-          href: "/finance/debts",
-          permission: "finance.debts",
-        },
-        {
-          title: "Báo cáo",
-          href: "/finance/reports",
-          permission: "finance.reports",
-        },
-      ],
-    },
-  ];
 
   const menuItems = allMenuItems
     .map((item) => {
@@ -361,7 +220,6 @@ export default function DashboardLayout({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  color: token.colorText,
                 }}
               >
                 <span>{child.title}</span>
@@ -474,124 +332,44 @@ export default function DashboardLayout({
     {
       key: "default",
       label: (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>
-            <span
-              style={{
-                display: "inline-block",
-                width: 16,
-                height: 16,
-                borderRadius: "50%",
-                backgroundColor: themeColors.default.primary,
-                marginRight: 8,
-                border: "2px solid rgba(0,0,0,0.1)",
-              }}
-            />
-            Cam
-          </span>
-          {themeName === "default" && (
-            <CheckOutlined style={{ color: token.colorPrimary }} />
-          )}
-        </div>
+        <ItemColorTheme
+          isChecked={themeName === "default"}
+          themeColor={themeColors.default.primary}
+          title="Cam"
+        />
       ),
       onClick: () => setThemeName("default"),
     },
     {
       key: "blue",
       label: (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>
-            <span
-              style={{
-                display: "inline-block",
-                width: 16,
-                height: 16,
-                borderRadius: "50%",
-                backgroundColor: themeColors.blue.primary,
-                marginRight: 8,
-                border: "2px solid rgba(0,0,0,0.1)",
-              }}
-            />
-            Xanh dương
-          </span>
-          {themeName === "blue" && (
-            <CheckOutlined style={{ color: token.colorPrimary }} />
-          )}
-        </div>
+        <ItemColorTheme
+          isChecked={themeName === "blue"}
+          themeColor={themeColors.blue.primary}
+          title="Xanh"
+        />
       ),
       onClick: () => setThemeName("blue"),
     },
     {
       key: "yellow",
       label: (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>
-            <span
-              style={{
-                display: "inline-block",
-                width: 16,
-                height: 16,
-                borderRadius: "50%",
-                backgroundColor: themeColors.yellow.primary,
-                marginRight: 8,
-                border: "2px solid rgba(0,0,0,0.1)",
-              }}
-            />
-            Vàng
-          </span>
-          {themeName === "yellow" && (
-            <CheckOutlined style={{ color: token.colorPrimary }} />
-          )}
-        </div>
+        <ItemColorTheme
+          isChecked={themeName === "yellow"}
+          themeColor={themeColors.yellow.primary}
+          title="Vàng"
+        />
       ),
       onClick: () => setThemeName("yellow"),
     },
     {
       key: "pink",
       label: (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>
-            <span
-              style={{
-                display: "inline-block",
-                width: 16,
-                height: 16,
-                borderRadius: "50%",
-                backgroundColor: themeColors.pink.primary,
-                marginRight: 8,
-                border: "2px solid rgba(0,0,0,0.1)",
-              }}
-            />
-            Hồng
-          </span>
-          {themeName === "pink" && (
-            <CheckOutlined style={{ color: token.colorPrimary }} />
-          )}
-        </div>
+        <ItemColorTheme
+          isChecked={themeName === "pink"}
+          themeColor={themeColors.pink.primary}
+          title="Hồng"
+        />
       ),
       onClick: () => setThemeName("pink"),
     },
@@ -641,7 +419,9 @@ export default function DashboardLayout({
               POS System
             </Text>
           ) : (
-            <span style={{ fontSize: 24 }}>📦</span>
+            <span style={{ fontSize: 24 }} className="text-primary font-bold">
+              P
+            </span>
           )}
         </div>
 
@@ -669,7 +449,15 @@ export default function DashboardLayout({
             zIndex: 10,
           }}
         >
-          <Breadcrumb items={getBreadcrumbItems()} />
+          <div className="flex gap-2">
+            <Breadcrumb items={getBreadcrumbItems()} />
+            {titlePage && (
+              <>
+                <DoubleRightOutlined />
+                <Text strong>{titlePage}</Text>
+              </>
+            )}
+          </div>
 
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <div
@@ -700,7 +488,6 @@ export default function DashboardLayout({
           style={{
             margin: "10px",
             padding: 20,
-            paddingTop: 2,
             background: token.colorBgContainer,
             minHeight: 280,
             borderRadius: token.borderRadius,
