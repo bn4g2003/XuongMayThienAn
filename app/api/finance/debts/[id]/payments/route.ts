@@ -5,13 +5,15 @@ import { requirePermission } from '@/lib/permissions';
 // GET - Lấy lịch sử thanh toán công nợ
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { hasPermission, error } = await requirePermission('finance.debts', 'view');
   
   if (!hasPermission) {
     return NextResponse.json({ success: false, error }, { status: 403 });
   }
+
+  const { id } = await params;
 
   try {
     const result = await query(
@@ -30,7 +32,7 @@ export async function GET(
       LEFT JOIN users u ON u.id = dp.created_by
       WHERE dp.debt_id = $1
       ORDER BY dp.payment_date DESC, dp.created_at DESC`,
-      [params.id]
+      [id]
     );
 
     return NextResponse.json({
@@ -49,13 +51,15 @@ export async function GET(
 // POST - Thanh toán công nợ
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { hasPermission, user, error } = await requirePermission('finance.debts', 'edit');
   
   if (!hasPermission) {
     return NextResponse.json({ success: false, error }, { status: 403 });
   }
+
+  const { id } = await params;
 
   try {
     const body = await request.json();
@@ -78,7 +82,7 @@ export async function POST(
         debt_type as "debtType"
       FROM debt_management 
       WHERE id = $1`,
-      [params.id]
+      [id]
     );
 
     if (debtResult.rows.length === 0) {
@@ -108,7 +112,7 @@ export async function POST(
         payment_date as "paymentDate",
         payment_method as "paymentMethod",
         created_at as "createdAt"`,
-      [params.id, paymentAmount, paymentDate, paymentMethod, bankAccountId || null, notes, user.id]
+      [id, paymentAmount, paymentDate, paymentMethod, bankAccountId || null, notes, user.id]
     );
 
     // Cập nhật remaining_amount
@@ -125,7 +129,7 @@ export async function POST(
       `UPDATE debt_management 
        SET remaining_amount = $1, status = $2, updated_at = CURRENT_TIMESTAMP
        WHERE id = $3`,
-      [newRemaining, newStatus, params.id]
+      [newRemaining, newStatus, id]
     );
 
     // Cập nhật debt_amount của customer hoặc supplier

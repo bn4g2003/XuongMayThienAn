@@ -5,13 +5,15 @@ import { requirePermission } from '@/lib/permissions';
 // PUT - Cập nhật danh mục tài chính
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { hasPermission, error } = await requirePermission('finance.categories', 'edit');
   
   if (!hasPermission) {
     return NextResponse.json({ success: false, error }, { status: 403 });
   }
+
+  const { id } = await params;
 
   try {
     const body = await request.json();
@@ -33,7 +35,7 @@ export async function PUT(
         description,
         is_active as "isActive",
         created_at as "createdAt"`,
-      [categoryName, type, description, isActive, params.id]
+      [categoryName, type, description, isActive, id]
     );
 
     if (result.rows.length === 0) {
@@ -59,7 +61,7 @@ export async function PUT(
 // DELETE - Xóa danh mục tài chính
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { hasPermission, error } = await requirePermission('finance.categories', 'delete');
   
@@ -67,10 +69,12 @@ export async function DELETE(
     return NextResponse.json({ success: false, error }, { status: 403 });
   }
 
+  const { id } = await params;
+
   try {
     const result = await query(
       'DELETE FROM financial_categories WHERE id = $1 RETURNING id',
-      [params.id]
+      [id]
     );
 
     if (result.rows.length === 0) {
