@@ -23,8 +23,8 @@ INSERT INTO permissions (permission_code, permission_name, module, description) 
 ('sales.reports', 'Báo cáo bán hàng', 'sales', 'Xem báo cáo bán hàng'),
 ('purchasing.suppliers', 'Quản lý NCC', 'purchasing', 'Xem, thêm, sửa, xóa nhà cung cấp'),
 ('purchasing.orders', 'Quản lý đơn mua', 'purchasing', 'Xem, tạo, sửa, xóa đơn mua'),
-('finance.cashbooks', 'Quản lý sổ quỹ', 'finance', 'Xem, thêm, sửa, xóa sổ quỹ'),
-('finance.debts', 'Quản lý công nợ', 'finance', 'Xem, thêm, thanh toán công nợ'),
+('finance.cashbook', 'Quản lý sổ quỹ', 'finance', 'Xem, thêm, sửa, xóa phiếu thu/chi'),
+('finance.debt', 'Quản lý công nợ', 'finance', 'Xem, thêm, thanh toán công nợ'),
 ('finance.reports', 'Báo cáo tài chính', 'finance', 'Xem báo cáo tài chính');
 
 -- Bước 3: Phân quyền cho ADMIN (full quyền tất cả)
