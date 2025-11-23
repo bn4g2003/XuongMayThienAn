@@ -23,6 +23,8 @@ import {
   SunOutlined,
   MoonOutlined,
   DoubleRightOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from "@ant-design/icons";
 import { themeColors } from "@/configs/theme";
 import LoaderApp from "@/components/LoaderApp";
@@ -388,9 +390,10 @@ export default function DashboardLayout({
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <Sider
+        trigger={null}
         collapsible
         collapsed={!sidebarOpen}
-        onCollapse={(collapsed) => setSidebarOpen(!collapsed)}
+        width={240}
         style={{
           overflow: "auto",
           height: "100vh",
@@ -434,7 +437,7 @@ export default function DashboardLayout({
       </Sider>
 
       <Layout
-        style={{ marginLeft: sidebarOpen ? 200 : 80, transition: "all 0.2s" }}
+        style={{ marginLeft: sidebarOpen ? 240 : 80, transition: "all 0.2s" }}
       >
         <Header
           style={{
@@ -449,7 +452,25 @@ export default function DashboardLayout({
             zIndex: 10,
           }}
         >
-          <div className="flex gap-2">
+          <div className="flex gap-3 items-center">
+            <div
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              style={{
+                fontSize: 18,
+                cursor: "pointer",
+                padding: "4px 8px",
+                borderRadius: token.borderRadius,
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = token.colorBgTextHover;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              {sidebarOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+            </div>
             <Breadcrumb items={getBreadcrumbItems()} />
             {titlePage && (
               <>
