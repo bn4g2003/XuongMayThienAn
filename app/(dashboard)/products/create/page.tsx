@@ -117,7 +117,7 @@ export default function CreateProductPage() {
             formatter={(value) =>
               `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
             }
-            parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
+            parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, "")) as any}
           />
         </Form.Item>
 
