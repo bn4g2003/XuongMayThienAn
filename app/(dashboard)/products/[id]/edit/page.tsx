@@ -138,8 +138,7 @@ export default function EditProductPage() {
               `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
             }
             parser={(value) =>
-              // remove any non-numeric characters and return a number; cast to any to satisfy InputNumber's type definition
-              Number(String(value ?? "").replace(/\$\s?|(,*)/g, ""))
+              Number(String(value ?? "").replace(/\$\s?|(,*)/g, "")) as any
             }
           />
         </Form.Item>
