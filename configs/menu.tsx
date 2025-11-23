@@ -95,6 +95,11 @@ export const allMenuItems: Array<{
         href: "/sales/orders",
         permission: "sales.orders",
       },
+      {
+        title: "Báo cáo",
+        href: "/sales/reports",
+        permission: "sales.orders",
+      },
     ],
   },
   {

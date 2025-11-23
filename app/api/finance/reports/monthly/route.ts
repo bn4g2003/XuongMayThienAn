@@ -1,0 +1,37 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/db';
+
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const startDate = searchParams.get('startDate') || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+    const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0];
+
+    const result = await query(`
+      SELECT 
+        TO_CHAR(transaction_date, 'YYYY-MM') as month,
+        COALESCE(SUM(CASE WHEN transaction_type = 'THU' THEN amount ELSE 0 END), 0) as revenue,
+        COALESCE(SUM(CASE WHEN transaction_type = 'CHI' THEN amount ELSE 0 END), 0) as expense,
+        COALESCE(SUM(CASE WHEN transaction_type = 'THU' THEN amount ELSE -amount END), 0) as profit
+      FROM cash_books
+      WHERE transaction_date::date BETWEEN $1::date AND $2::date
+      GROUP BY TO_CHAR(transaction_date, 'YYYY-MM')
+      ORDER BY month
+    `, [startDate, endDate]);
+
+    const monthlyData = result.rows.map((row: any) => ({
+      month: row.month,
+      revenue: parseFloat(row.revenue || '0'),
+      expense: parseFloat(row.expense || '0'),
+      profit: parseFloat(row.profit || '0'),
+    }));
+
+    return NextResponse.json({ success: true, data: monthlyData });
+  } catch (error: any) {
+    console.error('Error fetching monthly data:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Lỗi khi lấy dữ liệu theo tháng' },
+      { status: 500 }
+    );
+  }
+}
