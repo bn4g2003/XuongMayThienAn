@@ -31,12 +31,11 @@ const CommonTable = <T extends object>({
         title: "#",
         key: "stt",
         width: 50,
-        fixed: "left",
         render: (_, __, index) => <div>{index + 1 + (page - 1) * limit}</div>,
       });
     }
     return columns;
-  }, [rank, page, columns]);
+  }, [rank, page, columns, limit]);
 
   useEffect(() => {
     const handleScroll = () => {

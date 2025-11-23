@@ -1,28 +1,40 @@
 import AccessDenied from "@/components/AccessDenied";
 import { FilterList } from "@/components/FilterList";
 import LoaderApp from "@/components/LoaderApp";
+import { IParams } from "@/hooks/useFilter";
 import { useSetTitlePage } from "@/hooks/useSetTitlePage";
 import { ColumnSetting, FilterField } from "@/types";
 import { queriesToInvalidate } from "@/utils/refetchData";
 import {
   ArrowLeftOutlined,
+  DeleteOutlined,
   FilterOutlined,
   SearchOutlined,
   SettingOutlined,
   SyncOutlined,
 } from "@ant-design/icons";
-import { Button, Popover, Input, Checkbox, Divider, Empty } from "antd";
+import {
+  Button,
+  Popover,
+  Input,
+  Checkbox,
+  Divider,
+  Empty,
+  Form,
+  Tooltip,
+} from "antd";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import debounce from "lodash/debounce";
 
-interface WrapperContentProps {
+interface WrapperContentProps<T extends object> {
   title?: string;
   children: React.ReactNode;
   isLoading?: boolean;
   isNotAccessible?: boolean;
   isEmpty?: boolean;
   header: {
-    isBackButton?: boolean;
+    buttonBackTo?: string;
     refetchDataWithKeys?: string[] | readonly string[];
     buttonEnds?: {
       danger?: boolean;
@@ -33,10 +45,11 @@ interface WrapperContentProps {
     }[];
     searchInput?: {
       placeholder: string;
-      onChange: (value: string) => void;
+      filterKeys: (keyof T)[];
     };
     filters?: {
       fields: FilterField[];
+      query?: IParams;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onApplyFilter: (arr: { key: string; value: any }[]) => void;
       onReset?: () => void;
@@ -50,7 +63,7 @@ interface WrapperContentProps {
   className?: string;
 }
 
-const WrapperContent: React.FC<WrapperContentProps> = ({
+function WrapperContent<T extends object>({
   children,
   title,
   header,
@@ -58,54 +71,130 @@ const WrapperContent: React.FC<WrapperContentProps> = ({
   isNotAccessible = false,
   isEmpty = false,
   className = "",
-}) => {
+}: WrapperContentProps<T>) {
   const router = useRouter();
+  const [formFilter] = Form.useForm();
+
   useSetTitlePage(title || null);
   const [isOpenFilterModal, setIsOpenFilterModal] = useState(false);
   const [isOpenColumnSettings, setIsOpenColumnSettings] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(() => {
+    if (header.searchInput && header.filters && header.filters.query) {
+      const keys = ["search", ...header.searchInput.filterKeys].join(",");
+      const query = header.filters.query;
+      const term = query[keys];
+      return term;
+    }
+    return "";
+  });
+
+  const searchKey = useMemo(() => {
+    if (header.searchInput && header.filters && header.filters.query) {
+      const keys = ["search", ...header.searchInput.filterKeys].join(",");
+      return keys;
+    }
+    return "search";
+  }, [header.searchInput, header.filters]);
+
+  const hasActiveFilters = Boolean(
+    header.filters &&
+      Object.entries(header.filters.query || {}).some(([key, value]) => {
+        if (typeof value === "string" && !key.includes("search"))
+          return value.trim() !== "";
+        if (Array.isArray(value)) return value.length > 0;
+        return false;
+      })
+  );
+  const hasFilters = Boolean(
+    header.filters &&
+      Object.values(header.filters.query || {}).some((v) => {
+        if (typeof v === "string") return v.trim() !== "";
+        if (Array.isArray(v)) return v.length > 0;
+        return false;
+      })
+  );
+  const hasActiveColumnSettings = Boolean(
+    header.columnSettings &&
+      header.columnSettings.columns.some((c) => c.visible === false)
+  );
+
+  const handleResetFilters = () => {
+    if (header.filters?.onReset) {
+      header.filters.onReset();
+    }
+    formFilter.resetFields();
+    setSearchTerm("");
+  };
+
+  useEffect(() => {
+    if (!header.filters || typeof header.filters.onApplyFilter !== "function")
+      return;
+
+    const debounced = debounce((value: string) => {
+      header.filters!.onApplyFilter([{ key: searchKey, value: value }]);
+    }, 500);
+
+    debounced(searchTerm);
+
+    return () => {
+      debounced.cancel();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, header.filters]);
 
   return (
     <div className={`space-y-10 ${className}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {header.isBackButton && (
+          {header.buttonBackTo && (
             <Button
               type="default"
               icon={<ArrowLeftOutlined />}
-              onClick={() => router.back()}
+              onClick={() => router.push(header.buttonBackTo!)}
             >
               Quay lại
             </Button>
           )}
           {header.searchInput && (
             <Input
+              style={{ width: 256 }}
+              value={searchTerm}
               placeholder={header.searchInput.placeholder}
-              onChange={(e) => header.searchInput?.onChange(e.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
               prefix={<SearchOutlined />}
               allowClear
-              style={{ width: 256 }}
             />
           )}
           {header.filters && (
-            <Popover
-              trigger="click"
-              placement="bottomLeft"
-              content={
-                <FilterList
-                  onCancel={() => setIsOpenFilterModal(false)}
-                  fields={header.filters?.fields || []}
-                  onApplyFilter={(arr) => header.filters?.onApplyFilter(arr)}
-                  onReset={() =>
-                    header.filters?.onReset && header.filters.onReset()
-                  }
-                />
-              }
-              open={isOpenFilterModal}
-              onOpenChange={setIsOpenFilterModal}
-            >
-              <Button icon={<FilterOutlined />} />
-            </Popover>
+            <Form.Provider>
+              <Popover
+                getPopupContainer={(node) => node}
+                trigger="click"
+                placement="bottomLeft"
+                content={
+                  <FilterList
+                    form={formFilter}
+                    onCancel={() => setIsOpenFilterModal(false)}
+                    fields={header.filters?.fields || []}
+                    onApplyFilter={(arr) => header.filters?.onApplyFilter(arr)}
+                    onReset={() =>
+                      header.filters?.onReset && header.filters.onReset()
+                    }
+                  />
+                }
+                open={isOpenFilterModal}
+                onOpenChange={setIsOpenFilterModal}
+              >
+                <Tooltip title="Bộ lọc">
+                  <Button
+                    type={hasActiveFilters ? "primary" : "default"}
+                    icon={<FilterOutlined />}
+                  />
+                </Tooltip>
+              </Popover>
+            </Form.Provider>
           )}
+
           {header.columnSettings && (
             <Popover
               trigger="click"
@@ -154,21 +243,37 @@ const WrapperContent: React.FC<WrapperContentProps> = ({
               open={isOpenColumnSettings}
               onOpenChange={setIsOpenColumnSettings}
             >
-              <Button icon={<SettingOutlined />} />
+              <Tooltip title="Cài đặt cột">
+                <Button
+                  type={hasActiveColumnSettings ? "primary" : "default"}
+                  icon={<SettingOutlined />}
+                />
+              </Tooltip>
             </Popover>
+          )}
+          {hasFilters && header.filters?.onReset && (
+            <Tooltip title="Đặt lại bộ lọc">
+              <Button
+                onClick={handleResetFilters}
+                danger
+                icon={<DeleteOutlined />}
+              />
+            </Tooltip>
           )}
         </div>
         <div className="flex gap-3 items-center">
           {header.refetchDataWithKeys && (
-            <Button
-              type="default"
-              icon={<SyncOutlined spin={isLoading} />}
-              onClick={() => {
-                if (header.refetchDataWithKeys) {
-                  queriesToInvalidate(header.refetchDataWithKeys);
-                }
-              }}
-            />
+            <Tooltip title="Tải lại dữ liệu">
+              <Button
+                type="default"
+                icon={<SyncOutlined spin={isLoading} />}
+                onClick={() => {
+                  if (header.refetchDataWithKeys) {
+                    queriesToInvalidate(header.refetchDataWithKeys);
+                  }
+                }}
+              />
+            </Tooltip>
           )}
           {header.buttonEnds &&
             header.buttonEnds
@@ -178,15 +283,16 @@ const WrapperContent: React.FC<WrapperContentProps> = ({
                 return 0;
               })
               .map((buttonEnd, index) => (
-                <Button
-                  danger={buttonEnd.danger}
-                  key={index}
-                  type={buttonEnd.type}
-                  onClick={buttonEnd.onClick}
-                  icon={buttonEnd.icon}
-                >
-                  {buttonEnd.name}
-                </Button>
+                <Tooltip key={index} title={buttonEnd.name}>
+                  <Button
+                    danger={buttonEnd.danger}
+                    type={buttonEnd.type}
+                    onClick={buttonEnd.onClick}
+                    icon={buttonEnd.icon}
+                  >
+                    {buttonEnd.name}
+                  </Button>
+                </Tooltip>
               ))}
         </div>
       </div>
@@ -204,6 +310,6 @@ const WrapperContent: React.FC<WrapperContentProps> = ({
       {!isLoading && !isNotAccessible && children}
     </div>
   );
-};
+}
 
 export default WrapperContent;

@@ -1,6 +1,10 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 export const queryClient = new QueryClient({
@@ -11,6 +15,7 @@ export const queryClient = new QueryClient({
       retry: 3,
       staleTime: 0,
       refetchInterval: 10000 * 60,
+      placeholderData: keepPreviousData,
     },
   },
 });

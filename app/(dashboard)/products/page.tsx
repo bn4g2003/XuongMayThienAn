@@ -1,47 +1,72 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import useFilter from "@/hooks/useFilter";
 import {
   useProducts,
   useDeleteProduct,
+  useCreateProduct,
+  useUpdateProduct,
   PRODUCT_KEYS,
 } from "@/hooks/useProductQuery";
 import { useCategories } from "@/hooks/useProductQuery";
 import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
-import { Button, Tag, Typography, Modal } from "antd";
+import ProductDetailDrawer from "@/components/products/ProductDetailDrawer";
+import ProductFormModal, {
+  type ProductFormValues,
+} from "@/components/products/ProductFormModal";
+import type {
+  CreateProductDto,
+  UpdateProductDto,
+} from "@/services/productService";
+import { Button, Tag, Modal, Dropdown } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
+  MoreOutlined,
   CheckCircleOutlined,
   StopOutlined,
 } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
 import type { Product } from "@/services/productService";
 
-const { Title } = Typography;
-
 export default function ProductsPage() {
-  const router = useRouter();
+  // router not used since we open modals/drawers
   const { can } = usePermissions();
   const { updateQuery, reset, applyFilter, updateQueries } = useFilter();
 
   const { data: products = [], isLoading, isFetching } = useProducts();
   const { data: categories = [] } = useCategories();
   const deleteMutation = useDeleteProduct();
+  const createMutation = useCreateProduct();
+  const updateMutation = useUpdateProduct();
 
   const filteredProducts = applyFilter(products);
 
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+
   const handleView = (product: Product) => {
-    router.push(`/products/${product.id}`);
+    setSelectedProduct(product);
+    setDrawerVisible(true);
+  };
+
+  const handleCreate = () => {
+    setModalMode("create");
+    setSelectedProduct(null);
+    setModalVisible(true);
   };
 
   const handleEdit = (product: Product) => {
-    router.push(`/products/${product.id}/edit`);
+    setModalMode("edit");
+    setSelectedProduct(product);
+    setModalVisible(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -53,6 +78,20 @@ export default function ProductsPage() {
       okButtonProps: { danger: true },
       onOk: () => deleteMutation.mutate(id),
     });
+  };
+
+  const handleModalSubmit = (values: ProductFormValues) => {
+    if (modalMode === "create") {
+      createMutation.mutate(values as CreateProductDto, {
+        onSuccess: () => setModalVisible(false),
+      });
+    } else if (selectedProduct) {
+      const updatePayload: UpdateProductDto = values as UpdateProductDto;
+      updateMutation.mutate(
+        { id: selectedProduct.id, data: updatePayload },
+        { onSuccess: () => setModalVisible(false) }
+      );
+    }
   };
 
   const columns: TableColumnsType<Product> = [
@@ -107,50 +146,51 @@ export default function ProductsPage() {
       key: "action",
       width: 100,
       fixed: "right",
-      render: (_: unknown, record: Product) => (
-        <Button.Group>
-          <Button
-            type="text"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleView(record)}
-          />
-          {can("products.products", "edit") && (
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            />
-          )}
-          {can("products.products", "delete") && (
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete(record.id)}
-            />
-          )}
-        </Button.Group>
-      ),
+      render: (_: unknown, record: Product) => {
+        const menuItems = [
+          {
+            key: "view",
+            label: "Xem",
+            icon: <EyeOutlined />,
+            onClick: () => handleView(record),
+          },
+        ];
+
+        if (can("products.products", "edit")) {
+          menuItems.push({
+            key: "edit",
+            label: "Sửa",
+            icon: <EditOutlined />,
+            onClick: () => handleEdit(record),
+          });
+        }
+
+        if (can("products.products", "delete")) {
+          menuItems.push({
+            key: "delete",
+            label: "Xóa",
+            icon: <DeleteOutlined />,
+            onClick: () => handleDelete(record.id),
+          });
+        }
+
+        return (
+          <Dropdown
+            menu={{ items: menuItems }}
+            trigger={["click"]}
+            placement="bottomLeft"
+          >
+            <Button type="text" icon={<MoreOutlined />} size="small" />
+          </Dropdown>
+        );
+      },
     },
   ];
 
-  if (!can("products.products", "view")) {
-    return (
-      <div className="text-center py-12">
-        <Title level={3}>Không có quyền truy cập</Title>
-        <p className="text-gray-500">
-          Bạn không có quyền xem danh sách sản phẩm
-        </p>
-      </div>
-    );
-  }
-
   return (
     <>
-      <WrapperContent
+      <WrapperContent<Product>
+        isNotAccessible={!can("products.products", "view")}
         isLoading={isLoading || isFetching}
         header={{
           refetchDataWithKeys: PRODUCT_KEYS.all,
@@ -159,14 +199,20 @@ export default function ProductsPage() {
                 {
                   type: "primary",
                   name: "Thêm",
-                  onClick: () => router.push("/products/create"),
+                  onClick: handleCreate,
                   icon: <PlusOutlined />,
                 },
               ]
             : undefined,
           searchInput: {
             placeholder: "Tìm kiếm sản phẩm",
-            onChange: (value: string) => updateQuery("search", value),
+            filterKeys: [
+              "productCode",
+              "productName",
+              "categoryName",
+              "description",
+              "costPrice",
+            ],
           },
           filters: {
             fields: [
@@ -206,6 +252,31 @@ export default function ProductsPage() {
           rank={true}
         />
       </WrapperContent>
+
+      <ProductDetailDrawer
+        open={drawerVisible}
+        product={selectedProduct}
+        onClose={() => setDrawerVisible(false)}
+        onEdit={(p) => {
+          setDrawerVisible(false);
+          handleEdit(p);
+        }}
+        onDelete={(id) => {
+          setDrawerVisible(false);
+          handleDelete(id);
+        }}
+        canEdit={can("products.products", "edit")}
+        canDelete={can("products.products", "delete")}
+      />
+
+      <ProductFormModal
+        open={modalVisible}
+        mode={modalMode}
+        product={selectedProduct}
+        confirmLoading={createMutation.isPending || updateMutation.isPending}
+        onCancel={() => setModalVisible(false)}
+        onSubmit={handleModalSubmit}
+      />
     </>
   );
 }

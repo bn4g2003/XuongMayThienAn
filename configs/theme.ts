@@ -173,9 +173,8 @@ const createDarkThemeTokens = (primaryColor: string) => ({
 
   // Background colors
   colorBgContainer: "#27272a",
-  colorBgElevated: "#3f3f46",
+  colorBgElevated: "#27272a",
   colorBgLayout: "#18181b",
-  colorBgSpotlight: "rgba(250, 250, 250, 0.85)",
   colorBgMask: "rgba(0, 0, 0, 0.65)",
 
   // Border colors

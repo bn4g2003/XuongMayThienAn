@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import {  useLayoutEffect, useState } from 'react';
 
 interface Permission {
   permissionCode: string;
@@ -13,7 +13,7 @@ export const usePermissions = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     fetchPermissions();
   }, []);
 

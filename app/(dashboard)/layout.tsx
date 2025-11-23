@@ -14,6 +14,7 @@ import {
   Dropdown,
   Tag,
   theme,
+  Button,
 } from "antd";
 import type { MenuProps } from "antd";
 import {
@@ -453,24 +454,11 @@ export default function DashboardLayout({
           }}
         >
           <div className="flex gap-3 items-center">
-            <div
+            <Button
+              type="text"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={{
-                fontSize: 18,
-                cursor: "pointer",
-                padding: "4px 8px",
-                borderRadius: token.borderRadius,
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = token.colorBgTextHover;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-              }}
-            >
-              {sidebarOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
-            </div>
+              icon={sidebarOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+            />
             <Breadcrumb items={getBreadcrumbItems()} />
             {titlePage && (
               <>

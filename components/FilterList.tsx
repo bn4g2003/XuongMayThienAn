@@ -1,22 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { FilterField } from "@/types";
 import { Button, DatePicker, Divider, Form, Select, Space, Input } from "antd";
+import { FormInstance } from "antd/lib";
 
 interface FilterListProps {
   fields: FilterField[];
   onApplyFilter: (arr: { key: string; value: any }[]) => void;
   onReset?: () => void;
   onCancel?: () => void;
+  form: FormInstance<any>;
 }
 
 export const FilterList: React.FC<FilterListProps> = ({
   fields,
   onApplyFilter,
   onReset,
-  onCancel,
+  onCancel = () => {},
+  form,
 }) => {
-  const [form] = Form.useForm();
-
   const handleReset = () => {
     form.resetFields();
     if (onReset) {
@@ -35,6 +36,7 @@ export const FilterList: React.FC<FilterListProps> = ({
       }
     });
     onApplyFilter(payload);
+    onCancel();
   };
 
   const renderField = (field: FilterField) => {

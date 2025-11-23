@@ -1,9 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import useFilter from "@/hooks/useFilter";
-import { useUsers, useDeleteUser, USER_KEYS } from "@/hooks/useUserQuery";
+import {
+  useUsers,
+  useDeleteUser,
+  useCreateUser,
+  useUpdateUser,
+  USER_KEYS,
+} from "@/hooks/useUserQuery";
 import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
 import { Button, Tag, Modal } from "antd";
@@ -22,25 +28,55 @@ import type { TableColumnsType } from "antd";
 import useColumn from "@/hooks/useColumn";
 import { Dropdown } from "antd";
 import type { User } from "@/services/userService";
+import { useQuery } from "@tanstack/react-query";
+import { roleService, branchService } from "@/services/commonService";
+import UserDetailDrawer from "@/components/users/UserDetailDrawer";
+import UserFormModal, {
+  type UserFormValues,
+} from "@/components/users/UserFormModal";
 
 export default function UsersPage() {
-  const router = useRouter();
   const { can } = usePermissions();
-  const { updateQuery, reset, applyFilter, updateQueries } = useFilter();
+  const { reset, applyFilter, updateQueries, query } = useFilter();
 
   // React Query hooks
   const { data: users = [], isLoading, isFetching } = useUsers();
+  const { data: roles = [] } = useQuery({
+    queryKey: ["roles"],
+    queryFn: roleService.getAll,
+  });
+  const { data: branches = [] } = useQuery({
+    queryKey: ["branches"],
+    queryFn: branchService.getAll,
+  });
   const deleteMutation = useDeleteUser();
+  const createMutation = useCreateUser();
+  const updateMutation = useUpdateUser();
 
   // Apply filter to get filtered users
   const filteredUsers = applyFilter(users);
 
+  // State for drawer and modal
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+
   const handleView = (user: User) => {
-    router.push(`/admin/users/${user.id}`);
+    setSelectedUser(user);
+    setDrawerVisible(true);
+  };
+
+  const handleCreate = () => {
+    setModalMode("create");
+    setSelectedUser(null);
+    setModalVisible(true);
   };
 
   const handleEdit = (user: User) => {
-    router.push(`/admin/users/${user.id}/edit`);
+    setModalMode("edit");
+    setSelectedUser(user);
+    setModalVisible(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -54,18 +90,36 @@ export default function UsersPage() {
     });
   };
 
+  const handleModalSubmit = (values: UserFormValues) => {
+    if (modalMode === "create") {
+      createMutation.mutate(
+        values as unknown as Parameters<typeof createMutation.mutate>[0],
+        { onSuccess: () => setModalVisible(false) }
+      );
+    } else if (selectedUser) {
+      const updatePayload = {
+        fullName: values.fullName,
+        email: values.email,
+        phone: values.phone,
+        branchId: values.branchId,
+        roleId: values.roleId,
+        isActive: !!values.isActive,
+      };
+
+      updateMutation.mutate(
+        { id: selectedUser.id, data: updatePayload },
+        { onSuccess: () => setModalVisible(false) }
+      );
+    }
+  };
+
   const columnsAll: TableColumnsType<User> = [
     {
       title: "Mã",
       dataIndex: "userCode",
       key: "userCode",
       width: 120,
-    },
-    {
-      title: "Tên đăng nhập",
-      dataIndex: "username",
-      key: "username",
-      width: 150,
+      fixed: "left",
     },
     {
       title: "Họ tên",
@@ -74,17 +128,18 @@ export default function UsersPage() {
       width: 200,
     },
     {
+      title: "Tên đăng nhập",
+      dataIndex: "username",
+      key: "username",
+      width: 150,
+    },
+    {
       title: "Chi nhánh",
       dataIndex: "branchName",
       key: "branchName",
       width: 150,
     },
-    {
-      title: "Vai trò",
-      dataIndex: "roleName",
-      key: "roleName",
-      width: 150,
-    },
+    { title: "Vai trò", dataIndex: "roleName", key: "roleName", width: 150 },
     {
       title: "Trạng thái",
       dataIndex: "isActive",
@@ -150,9 +205,9 @@ export default function UsersPage() {
 
   return (
     <>
-      <WrapperContent
+      <WrapperContent<User>
         isNotAccessible={!can("admin.users", "view")}
-        isLoading={isLoading || isFetching}
+        isLoading={isLoading}
         header={{
           refetchDataWithKeys: USER_KEYS.all,
           buttonEnds: can("admin.users", "create")
@@ -160,7 +215,7 @@ export default function UsersPage() {
                 {
                   type: "primary",
                   name: "Thêm",
-                  onClick: () => router.push("/admin/users/create"),
+                  onClick: handleCreate,
                   icon: <PlusOutlined />,
                 },
                 {
@@ -179,7 +234,7 @@ export default function UsersPage() {
             : undefined,
           searchInput: {
             placeholder: "Tìm kiếm người dùng",
-            onChange: (value: string) => updateQuery("search", value),
+            filterKeys: ["fullName", "username", "branchName", "roleName"],
           },
           filters: {
             fields: [
@@ -193,20 +248,24 @@ export default function UsersPage() {
                   { label: "Nhân viên", value: "MANAGER" },
                 ],
               },
+              {
+                type: "select",
+                name: "isActive",
+                label: "Trạng thái",
+                options: [
+                  { label: "Hoạt động", value: true },
+                  { label: "Khóa", value: false },
+                ],
+              },
             ],
-            onApplyFilter: (arr) => {
-              updateQueries(arr);
-            },
-            onReset: () => {
-              reset();
-            },
+            onApplyFilter: (arr) => updateQueries(arr),
+            onReset: () => reset(),
+            query,
           },
           columnSettings: {
             columns: columnsCheck,
             onChange: (cols) => updateColumns(cols),
-            onReset: () => {
-              resetColumns();
-            },
+            onReset: () => resetColumns(),
           },
         }}
       >
@@ -214,10 +273,37 @@ export default function UsersPage() {
           columns={getVisibleColumns()}
           dataSource={filteredUsers}
           loading={isLoading || deleteMutation.isPending || isFetching}
-          paging={true}
-          rank={true}
+          paging
+          rank
         />
       </WrapperContent>
+
+      <UserDetailDrawer
+        open={drawerVisible}
+        user={selectedUser}
+        onClose={() => setDrawerVisible(false)}
+        onEdit={(u) => {
+          setDrawerVisible(false);
+          handleEdit(u);
+        }}
+        onDelete={(id) => {
+          setDrawerVisible(false);
+          handleDelete(id);
+        }}
+        canEdit={can("admin.users", "edit")}
+        canDelete={can("admin.users", "delete")}
+      />
+
+      <UserFormModal
+        open={modalVisible}
+        mode={modalMode}
+        user={selectedUser}
+        roles={roles}
+        branches={branches}
+        confirmLoading={createMutation.isPending || updateMutation.isPending}
+        onCancel={() => setModalVisible(false)}
+        onSubmit={handleModalSubmit}
+      />
     </>
   );
 }
