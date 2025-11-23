@@ -229,6 +229,7 @@ export default function CategoriesPage() {
         isNotAccessible={!can("products.categories", "view")}
         isLoading={isLoading}
         header={{
+          refetchDataWithKeys: ["categories"],
           buttonEnds: can("products.categories", "create")
             ? [
                 {

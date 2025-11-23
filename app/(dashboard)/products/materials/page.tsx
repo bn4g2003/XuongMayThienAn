@@ -273,6 +273,7 @@ export default function MaterialsPage() {
         isNotAccessible={!can("products.materials", "view")}
         isLoading={isLoading}
         header={{
+          refetchDataWithKeys: ["materials"],
           buttonEnds: can("products.materials", "create")
             ? [
                 {

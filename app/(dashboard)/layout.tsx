@@ -95,20 +95,8 @@ export default function DashboardLayout({
   const user: User | null = meData?.data?.user || null;
 
   // Fetch warehouses using TanStack Query; enabled only when user exists
-  const { data: warehousesData = [], isLoading: warehousesLoading } = useQuery<
-    Warehouse[]
-  >({
-    queryKey: ["warehouses"],
-    queryFn: async () => {
-      const res = await fetch("/api/inventory/warehouses");
-      const body = await res.json();
-      return body.success ? body.data : [];
-    },
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000,
-  });
 
-  const loading = meLoading || warehousesLoading || permLoading;
+  const loading = meLoading || permLoading;
 
   const getBreadcrumbTitle = (path: string) => {
     const breadcrumbMap: Record<string, string> = {
@@ -166,20 +154,6 @@ export default function DashboardLayout({
 
   const menuItems = allMenuItems
     .map((item) => {
-      if (item.title === "Kho" && item.children) {
-        const warehouseChildren = (warehousesData || []).map((wh) => ({
-          title: wh.warehouseName,
-          href: `/inventory?warehouseId=${wh.id}`,
-          permission: undefined,
-          warehouseType: wh.warehouseType,
-          warehouseCode: wh.warehouseCode,
-        }));
-
-        if (warehouseChildren.length === 0) return null;
-
-        return { ...item, children: warehouseChildren };
-      }
-
       if (item.children) {
         const filteredChildren = item.children.filter(
           (child) => !child.permission || can(child.permission, "view")
@@ -240,13 +214,6 @@ export default function DashboardLayout({
                 }}
               >
                 <span style={ellipsisStyle}>{child.title}</span>
-                {child.warehouseType && (
-                  <Tag
-                    color={child.warehouseType === "NVL" ? "purple" : "green"}
-                  >
-                    {child.warehouseType === "NVL" ? "NVL" : "TP"}
-                  </Tag>
-                )}
               </div>
             </Link>
           </Tooltip>
@@ -255,9 +222,16 @@ export default function DashboardLayout({
     };
   });
 
-  // Helper: normalize a menu key (strip query string)
-  const normalizeKey = (key?: React.Key) =>
-    key ? String(key).split("?")[0] : "";
+  // Helper: normalize a menu key (strip query string and trailing slash)
+  const normalizeKey = (key?: React.Key) => {
+    if (!key) return "";
+    const withoutQuery = String(key).split("?")[0];
+    // remove trailing slash except when the path is just '/'
+    return withoutQuery === "/" ? "/" : withoutQuery.replace(/\/$/, "");
+  };
+
+  // normalized current pathname (no trailing slash)
+  const normPath = pathname === "/" ? "/" : pathname.replace(/\/$/, "");
 
   // Find the most specific menu key matching the current pathname
   const getSelectedKey = () => {
@@ -271,7 +245,7 @@ export default function DashboardLayout({
           if (!child || !("key" in child)) continue;
           const key = normalizeKey(child.key);
           if (!key) continue;
-          if (pathname === key || pathname.startsWith(key + "/")) {
+          if (normPath === key || normPath.startsWith(key + "/")) {
             if (key.length > bestLen) {
               bestLen = key.length;
               bestKey = String(child.key);
@@ -289,7 +263,7 @@ export default function DashboardLayout({
       ) {
         const key = normalizeKey(item.key);
         if (!key) continue;
-        if (pathname === key || pathname.startsWith(key + "/")) {
+        if (normPath === key || normPath.startsWith(key + "/")) {
           if (key.length > bestLen) {
             bestLen = key.length;
             bestKey = item.key as string;
@@ -308,7 +282,7 @@ export default function DashboardLayout({
       const hasActiveChild = item.children.some((child) => {
         if (!child || !("key" in child)) return false;
         const key = normalizeKey(child.key);
-        return key && (pathname === key || pathname.startsWith(key + "/"));
+        return key && (normPath === key || normPath.startsWith(key + "/"));
       });
       if (hasActiveChild && item.key) openKeys.push(String(item.key));
     }

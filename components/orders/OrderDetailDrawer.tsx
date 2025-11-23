@@ -81,7 +81,7 @@ export default function OrderDetailDrawer({
       placement="right"
       onClose={onClose}
       open={open}
-      width={720}
+      size={720}
       extra={
         <Space>
           <Button icon={<PrinterOutlined />} onClick={handlePrint}>

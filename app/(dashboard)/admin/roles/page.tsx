@@ -221,6 +221,7 @@ export default function RolesPage() {
         isNotAccessible={!can("admin.roles", "view")}
         isLoading={isLoading}
         header={{
+          refetchDataWithKeys: ["roles"],
           buttonEnds: can("admin.roles", "create")
             ? [
                 {
@@ -258,7 +259,7 @@ export default function RolesPage() {
       </WrapperContent>
 
       <Drawer
-        width={640}
+        size={640}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title="Chi tiết vai trò"

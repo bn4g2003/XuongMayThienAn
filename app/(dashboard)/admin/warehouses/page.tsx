@@ -250,6 +250,7 @@ export default function WarehousesPage() {
         isNotAccessible={!can("admin.warehouses", "view")}
         isLoading={isLoading}
         header={{
+          refetchDataWithKeys: ["warehouses"],
           buttonEnds: can("admin.warehouses", "create")
             ? [
                 {

@@ -74,7 +74,33 @@ export const allMenuItems: Array<{
     title: "Kho",
     icon: <InboxOutlined />,
     permission: "inventory.balance",
-    children: [], // Sẽ được thêm động từ API
+    children: [
+      {
+        title: "Tồn kho",
+        href: "/inventory/balance/",
+        permission: "inventory.balance",
+      },
+      {
+        title: "Nhập kho",
+        href: "/inventory/import/",
+        permission: "inventory.import",
+      },
+      {
+        title: "Xuất kho",
+        href: "/inventory/export/",
+        permission: "inventory.export",
+      },
+      {
+        title: "Luân chuyển kho",
+        href: "/inventory/transfer/",
+        permission: "inventory.transfer",
+      },
+      {
+        title: "Lịch sử",
+        href: "/inventory/transaction-history/",
+        permission: "inventory.transaction-history",
+      },
+    ],
   },
   {
     title: "Bán hàng",

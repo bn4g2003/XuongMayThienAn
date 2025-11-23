@@ -31,7 +31,7 @@ export default function CustomerGroupDetailDrawer({
       placement="right"
       onClose={onClose}
       open={open}
-      width={600}
+      size={600}
       extra={
         <Space>
           {canEdit && (
