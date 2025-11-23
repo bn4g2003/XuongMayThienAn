@@ -13,7 +13,7 @@ import {
 } from "@/hooks/useCustomerQuery";
 import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
-import { Button, Tag, Modal } from "antd";
+import { Button, Tag, Modal, App } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
@@ -51,8 +51,11 @@ export default function CustomersPage() {
   // State for drawer and modal
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null
+  );
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const { modal } = App.useApp();
 
   const handleView = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -72,7 +75,7 @@ export default function CustomersPage() {
   };
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: "Xác nhận xóa",
       content: "Bạn có chắc muốn xóa khách hàng này?",
       okText: "Xóa",
@@ -107,7 +110,7 @@ export default function CustomersPage() {
 
   const handleExportExcel = () => {
     // TODO: Implement Excel export
-    Modal.info({
+    modal.info({
       title: "Xuất Excel",
       content: "Tính năng xuất Excel đang được phát triển",
     });
@@ -115,7 +118,7 @@ export default function CustomersPage() {
 
   const handleImportExcel = () => {
     // TODO: Implement Excel import
-    Modal.info({
+    modal.info({
       title: "Nhập Excel",
       content: "Tính năng nhập Excel đang được phát triển",
     });

@@ -1,4 +1,4 @@
-import {  useLayoutEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 interface Permission {
   permissionCode: string;
@@ -8,34 +8,31 @@ interface Permission {
   canDelete: boolean;
 }
 
+interface PermissionsData {
+  isAdmin: boolean;
+  permissions: Permission[];
+}
+
 export const usePermissions = () => {
-  const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useLayoutEffect(() => {
-    fetchPermissions();
-  }, []);
-
-  const fetchPermissions = async () => {
-    try {
+  const { data, isLoading } = useQuery<PermissionsData>({
+    queryKey: ['permissions'],
+    queryFn: async () => {
       const res = await fetch('/api/auth/permissions');
-      const data = await res.json();
-      console.log('[usePermissions] API Response:', data);
-      if (data.success) {
-        setIsAdmin(data.data.isAdmin || false);
-        setPermissions(data.data.permissions || []);
-        console.log('[usePermissions] isAdmin:', data.data.isAdmin);
-        console.log('[usePermissions] permissions count:', data.data.permissions?.length || 0);
-      } else {
-        console.error('[usePermissions] API Error:', data.error);
+      const body = await res.json();
+      if (!body.success) {
+        throw new Error(body.error || 'Failed to fetch permissions');
       }
-    } catch (error) {
-      console.error('Error fetching permissions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        isAdmin: body.data.isAdmin || false,
+        permissions: body.data.permissions || [],
+      };
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  const permissions = data?.permissions || [];
+  const isAdmin = data?.isAdmin || false;
 
   const can = (permissionCode: string, action: 'view' | 'create' | 'edit' | 'delete'): boolean => {
     // ADMIN có toàn quyền
@@ -53,5 +50,5 @@ export const usePermissions = () => {
     }
   };
 
-  return { permissions, isAdmin, loading, can };
+  return { permissions, isAdmin, loading: isLoading, can };
 };

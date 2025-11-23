@@ -1,7 +1,32 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { usePermissions } from '@/hooks/usePermissions';
+import React, { useState } from "react";
+import {
+  Button,
+  Drawer,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Dropdown,
+  Descriptions,
+  Tag,
+  App,
+} from "antd";
+import type { TableColumnsType } from "antd";
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  MoreOutlined,
+} from "@ant-design/icons";
+import WrapperContent from "@/components/WrapperContent";
+import CommonTable from "@/components/CommonTable";
+import useFilter from "@/hooks/useFilter";
+import useColumn from "@/hooks/useColumn";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Material {
   id: number;
@@ -12,337 +37,394 @@ interface Material {
   branchName: string;
 }
 
+type MaterialFormValues = {
+  materialCode: string;
+  materialName: string;
+  unit: string;
+  description?: string;
+};
+
+const UNIT_OPTIONS = [
+  {
+    label: "Độ dài",
+    options: [
+      { label: "mét (m)", value: "mét" },
+      { label: "centimet (cm)", value: "cm" },
+      { label: "milimét (mm)", value: "mm" },
+    ],
+  },
+  {
+    label: "Khối lượng",
+    options: [
+      { label: "kilogram (kg)", value: "kg" },
+      { label: "gram (g)", value: "gram" },
+      { label: "tấn", value: "tấn" },
+    ],
+  },
+  {
+    label: "Thể tích",
+    options: [
+      { label: "lít (l)", value: "lít" },
+      { label: "mililít (ml)", value: "ml" },
+    ],
+  },
+  {
+    label: "Số lượng",
+    options: [
+      { label: "cái", value: "cái" },
+      { label: "chiếc", value: "chiếc" },
+      { label: "bộ", value: "bộ" },
+      { label: "hộp", value: "hộp" },
+      { label: "thùng", value: "thùng" },
+      { label: "cuộn", value: "cuộn" },
+      { label: "tấm", value: "tấm" },
+      { label: "viên", value: "viên" },
+    ],
+  },
+];
+
 export default function MaterialsPage() {
-  const { can, loading: permLoading } = usePermissions();
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
-  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
-  const [formData, setFormData] = useState({
-    materialCode: '',
-    materialName: '',
-    unit: '',
-    description: '',
+  const { can } = usePermissions();
+  const { reset, applyFilter, updateQueries, query } = useFilter();
+  const queryClient = useQueryClient();
+
+  const {
+    data: materials = [],
+    isLoading,
+    isFetching,
+  } = useQuery<Material[]>({
+    queryKey: ["materials"],
+    queryFn: async () => {
+      const res = await fetch("/api/products/materials");
+      const body = await res.json();
+      return body.success ? body.data : [];
+    },
   });
 
-  useEffect(() => {
-    fetchMaterials();
-  }, []);
-
-  const fetchMaterials = async () => {
-    try {
-      const res = await fetch('/api/products/materials');
-      const data = await res.json();
-      if (data.success) {
-        setMaterials(data.data);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAdd = () => {
-    setEditingMaterial(null);
-    setFormData({
-      materialCode: '',
-      materialName: '',
-      unit: '',
-      description: '',
-    });
-    setShowModal(true);
-  };
-
-  const handleEdit = (material: Material) => {
-    setEditingMaterial(material);
-    setFormData({
-      materialCode: material.materialCode,
-      materialName: material.materialName,
-      unit: material.unit,
-      description: material.description || '',
-    });
-    setShowModal(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const url = editingMaterial 
-        ? `/api/products/materials/${editingMaterial.id}`
-        : '/api/products/materials';
-      
-      const method = editingMaterial ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+  const createMutation = useMutation({
+    mutationFn: async (data: MaterialFormValues) => {
+      const res = await fetch("/api/products/materials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
       });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["materials"] });
+    },
+  });
 
-      const data = await res.json();
-      
-      if (data.success) {
-        alert(editingMaterial ? 'Cập nhật thành công' : 'Tạo NVL thành công');
-        setShowModal(false);
-        setSelectedMaterial(null);
-        fetchMaterials();
-      } else {
-        alert(data.error);
-      }
-    } catch (error) {
-      alert('Lỗi khi lưu NVL');
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm('Bạn có chắc muốn xóa NVL này?')) return;
-
-    try {
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Partial<MaterialFormValues>;
+    }) => {
       const res = await fetch(`/api/products/materials/${id}`, {
-        method: 'DELETE',
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
       });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["materials"] }),
+  });
 
-      const data = await res.json();
-      
-      if (data.success) {
-        alert('Xóa thành công');
-        setSelectedMaterial(null);
-        fetchMaterials();
-      } else {
-        alert(data.error);
-      }
-    } catch (error) {
-      alert('Lỗi khi xóa');
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/products/materials/${id}`, {
+        method: "DELETE",
+      });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["materials"] }),
+  });
+
+  const filtered = applyFilter<Material>(materials);
+
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selected, setSelected] = useState<Material | null>(null);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const { modal } = App.useApp();
+
+  const handleView = (row: Material) => {
+    setSelected(row);
+    setDrawerOpen(true);
+  };
+
+  const handleCreate = () => {
+    setModalMode("create");
+    setSelected(null);
+    setModalOpen(true);
+  };
+
+  const handleEdit = (row: Material) => {
+    setModalMode("edit");
+    setSelected(row);
+    setModalOpen(true);
+  };
+
+  const handleDelete = (id: number) => {
+    modal.confirm({
+      title: "Xác nhận xóa",
+      content: "Bạn có chắc muốn xóa nguyên vật liệu này?",
+      okText: "Xóa",
+      cancelText: "Hủy",
+      okButtonProps: { danger: true },
+      onOk: () => deleteMutation.mutate(id),
+    });
+  };
+
+  const handleSubmit = (values: MaterialFormValues) => {
+    if (modalMode === "create") {
+      createMutation.mutate(values, { onSuccess: () => setModalOpen(false) });
+    } else if (selected) {
+      updateMutation.mutate(
+        { id: selected.id, data: values },
+        { onSuccess: () => setModalOpen(false) }
+      );
     }
   };
 
-  if (loading || permLoading) return <div>Đang tải...</div>;
+  const columnsAll: TableColumnsType<Material> = [
+    {
+      title: "Mã NVL",
+      dataIndex: "materialCode",
+      key: "materialCode",
+      width: 120,
+    },
+    {
+      title: "Tên nguyên vật liệu",
+      dataIndex: "materialName",
+      key: "materialName",
+      width: 240,
+    },
+    {
+      title: "Đơn vị",
+      dataIndex: "unit",
+      key: "unit",
+      width: 100,
+      render: (unit: string) => <Tag color="blue">{unit}</Tag>,
+    },
+    {
+      title: "Mô tả",
+      dataIndex: "description",
+      key: "description",
+      render: (val: string | undefined) => val || "-",
+    },
+    {
+      title: "Chi nhánh",
+      dataIndex: "branchName",
+      key: "branchName",
+      width: 180,
+    },
+    {
+      title: "Thao tác",
+      key: "action",
+      width: 120,
+      fixed: "right",
+      render: (_value: unknown, record: Material) => {
+        const menuItems = [
+          {
+            key: "view",
+            label: "Xem",
+            icon: <EyeOutlined />,
+            onClick: () => handleView(record),
+          },
+        ];
+        if (can("products.materials", "edit"))
+          menuItems.push({
+            key: "edit",
+            label: "Sửa",
+            icon: <EditOutlined />,
+            onClick: () => handleEdit(record),
+          });
+        if (can("products.materials", "delete"))
+          menuItems.push({
+            key: "delete",
+            label: "Xóa",
+            icon: <DeleteOutlined />,
+            onClick: () => handleDelete(record.id),
+          });
 
-  // Kiểm tra quyền xem
-  if (!can('products.materials', 'view')) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4">🔒</div>
-        <h2 className="text-2xl font-bold text-gray-700 mb-2">Không có quyền truy cập</h2>
-        <p className="text-gray-500">Bạn không có quyền xem nguyên vật liệu</p>
-      </div>
-    );
-  }
+        return (
+          <Dropdown
+            menu={{ items: menuItems }}
+            trigger={["click"]}
+            placement="bottomLeft"
+          >
+            <Button type="text" icon={<MoreOutlined />} size="small" />
+          </Dropdown>
+        );
+      },
+    },
+  ];
+
+  const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
+    useColumn({ defaultColumns: columnsAll });
 
   return (
-    <div className="flex h-[calc(100vh-120px)]">
-      {/* Main Content */}
-      <div className={`flex-1 transition-all ${selectedMaterial ? 'mr-96' : ''}`}>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Nguyên vật liệu</h1>
-        {can('products.materials', 'create') && (
-          <button
-            onClick={handleAdd}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            + Thêm NVL
-          </button>
-        )}
+    <>
+      <WrapperContent<Material>
+        isNotAccessible={!can("products.materials", "view")}
+        isLoading={isLoading}
+        header={{
+          buttonEnds: can("products.materials", "create")
+            ? [
+                {
+                  type: "primary",
+                  name: "Thêm",
+                  onClick: handleCreate,
+                  icon: <PlusOutlined />,
+                },
+              ]
+            : undefined,
+          searchInput: {
+            placeholder: "Tìm kiếm nguyên vật liệu",
+            filterKeys: ["materialName", "materialCode", "description", "unit"],
+          },
+          filters: {
+            fields: [],
+            onApplyFilter: (arr) => updateQueries(arr),
+            onReset: () => reset(),
+            query,
+          },
+          columnSettings: {
+            columns: columnsCheck,
+            onChange: (c) => updateColumns(c),
+            onReset: () => resetColumns(),
+          },
+        }}
+      >
+        <CommonTable
+          columns={getVisibleColumns()}
+          dataSource={filtered}
+          loading={isLoading || isFetching || deleteMutation.isPending}
+          paging
+          rank
+        />
+      </WrapperContent>
+
+      <Drawer
+        size={640}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Chi tiết nguyên vật liệu"
+      >
+        {selected ? (
+          <Descriptions bordered column={1} size="small">
+            <Descriptions.Item label="Mã NVL">
+              {selected.materialCode}
+            </Descriptions.Item>
+            <Descriptions.Item label="Tên nguyên vật liệu">
+              {selected.materialName}
+            </Descriptions.Item>
+            <Descriptions.Item label="Đơn vị">
+              <Tag color="blue">{selected.unit}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Mô tả">
+              {selected.description || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Chi nhánh">
+              {selected.branchName}
+            </Descriptions.Item>
+          </Descriptions>
+        ) : null}
+      </Drawer>
+
+      <Modal
+        title={
+          modalMode === "create" ? "Tạo nguyên vật liệu" : "Sửa nguyên vật liệu"
+        }
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        footer={null}
+        key={selected?.id || "create"}
+        destroyOnHidden
+      >
+        <MaterialForm
+          mode={modalMode}
+          initialValues={
+            selected
+              ? {
+                  materialCode: selected.materialCode,
+                  materialName: selected.materialName,
+                  unit: selected.unit,
+                  description: selected.description,
+                }
+              : undefined
+          }
+          onCancel={() => setModalOpen(false)}
+          onSubmit={handleSubmit}
+          loading={createMutation.isPending || updateMutation.isPending}
+        />
+      </Modal>
+    </>
+  );
+}
+
+function MaterialForm({
+  mode,
+  initialValues,
+  onCancel,
+  onSubmit,
+  loading,
+}: {
+  mode: "create" | "edit";
+  initialValues?: Partial<MaterialFormValues>;
+  onCancel: () => void;
+  onSubmit: (v: MaterialFormValues) => void;
+  loading?: boolean;
+}) {
+  const [form] = Form.useForm<MaterialFormValues>();
+
+  return (
+    <Form
+      form={form}
+      layout="vertical"
+      initialValues={initialValues}
+      onFinish={(v) => onSubmit(v as MaterialFormValues)}
+    >
+      <Form.Item
+        name="materialCode"
+        label="Mã NVL"
+        rules={[{ required: true, message: "Vui lòng nhập mã NVL" }]}
+      >
+        <Input disabled={mode === "edit"} />
+      </Form.Item>
+      <Form.Item
+        name="materialName"
+        label="Tên nguyên vật liệu"
+        rules={[{ required: true, message: "Vui lòng nhập tên NVL" }]}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
+        name="unit"
+        label="Đơn vị"
+        rules={[{ required: true, message: "Vui lòng chọn đơn vị" }]}
+        extra="Chọn đơn vị phù hợp với loại nguyên vật liệu"
+      >
+        <Select
+          placeholder="-- Chọn đơn vị --"
+          options={UNIT_OPTIONS}
+          showSearch
+          optionFilterProp="label"
+        />
+      </Form.Item>
+      <Form.Item name="description" label="Mô tả">
+        <Input.TextArea rows={3} />
+      </Form.Item>
+      <div className="flex gap-2 justify-end">
+        <Button onClick={onCancel}>Hủy</Button>
+        <Button type="primary" htmlType="submit" loading={loading}>
+          Lưu
+        </Button>
       </div>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên NVL</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Đơn vị</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mô tả</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Chi nhánh</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {materials.map((mat) => (
-              <tr 
-                key={mat.id}
-                className={`hover:bg-blue-50 cursor-pointer transition-colors ${selectedMaterial?.id === mat.id ? 'bg-blue-100' : ''}`}
-                onClick={() => setSelectedMaterial(mat)}
-              >
-                <td className="px-6 py-4 text-sm">{mat.materialCode}</td>
-                <td className="px-6 py-4 text-sm font-medium">{mat.materialName}</td>
-                <td className="px-6 py-4 text-sm">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                    {mat.unit}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm">{mat.description || '-'}</td>
-                <td className="px-6 py-4 text-sm">{mat.branchName}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      </div>
-
-      {/* Detail Panel */}
-      {selectedMaterial && (
-        <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl border-l border-gray-200 overflow-y-auto z-40">
-          <div className="p-6">
-            <div className="flex justify-between items-start mb-6">
-              <h2 className="text-xl font-bold">Chi tiết NVL</h2>
-              <button
-                onClick={() => setSelectedMaterial(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-gray-500 uppercase">Mã NVL</label>
-                <p className="text-sm font-medium mt-1">{selectedMaterial.materialCode}</p>
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 uppercase">Tên nguyên vật liệu</label>
-                <p className="text-sm font-medium mt-1">{selectedMaterial.materialName}</p>
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 uppercase">Đơn vị</label>
-                <p className="text-sm mt-1">
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded font-medium">
-                    {selectedMaterial.unit}
-                  </span>
-                </p>
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 uppercase">Mô tả</label>
-                <p className="text-sm mt-1">{selectedMaterial.description || '-'}</p>
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500 uppercase">Chi nhánh</label>
-                <p className="text-sm mt-1">{selectedMaterial.branchName}</p>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t space-y-3">
-              {can('products.materials', 'edit') && (
-                <button
-                  onClick={() => handleEdit(selectedMaterial)}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  Chỉnh sửa
-                </button>
-              )}
-              {can('products.materials', 'delete') && (
-                <button
-                  onClick={() => handleDelete(selectedMaterial.id)}
-                  className="w-full px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                >
-                  Xóa NVL
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showModal && (
-        <div className="fixed inset-0 bg-gray-500/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h2 className="text-xl font-bold mb-4">
-              {editingMaterial ? 'Chỉnh sửa nguyên vật liệu' : 'Thêm nguyên vật liệu'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Mã NVL *</label>
-                <input
-                  type="text"
-                  value={formData.materialCode}
-                  onChange={(e) => setFormData({...formData, materialCode: e.target.value})}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={!!editingMaterial}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Tên NVL *</label>
-                <input
-                  type="text"
-                  value={formData.materialName}
-                  onChange={(e) => setFormData({...formData, materialName: e.target.value})}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Đơn vị *</label>
-                <select
-                  value={formData.unit}
-                  onChange={(e) => setFormData({...formData, unit: e.target.value})}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                >
-                  <option value="">-- Chọn đơn vị --</option>
-                  <optgroup label="Độ dài">
-                    <option value="mét">mét (m)</option>
-                    <option value="cm">centimet (cm)</option>
-                    <option value="mm">milimét (mm)</option>
-                  </optgroup>
-                  <optgroup label="Khối lượng">
-                    <option value="kg">kilogram (kg)</option>
-                    <option value="gram">gram (g)</option>
-                    <option value="tấn">tấn</option>
-                  </optgroup>
-                  <optgroup label="Thể tích">
-                    <option value="lít">lít (l)</option>
-                    <option value="ml">mililít (ml)</option>
-                  </optgroup>
-                  <optgroup label="Số lượng">
-                    <option value="cái">cái</option>
-                    <option value="chiếc">chiếc</option>
-                    <option value="bộ">bộ</option>
-                    <option value="hộp">hộp</option>
-                    <option value="thùng">thùng</option>
-                    <option value="cuộn">cuộn</option>
-                    <option value="tấm">tấm</option>
-                    <option value="viên">viên</option>
-                  </optgroup>
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Chọn đơn vị phù hợp với loại nguyên vật liệu
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Mô tả</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows={2}
-                />
-              </div>
-              <div className="flex gap-2 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                >
-                  {editingMaterial ? 'Cập nhật' : 'Tạo'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-                >
-                  Hủy
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+    </Form>
   );
 }

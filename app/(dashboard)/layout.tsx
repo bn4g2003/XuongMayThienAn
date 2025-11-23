@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTheme } from "@/providers/AppThemeProvider";
@@ -60,61 +61,53 @@ export default function DashboardLayout({
   const titlePage = useSiteTitleStore((state) => state.title);
   const router = useRouter();
   const pathname = usePathname();
-  const { can } = usePermissions();
+  const { can, loading: permLoading } = usePermissions();
   const { mode, themeName, setMode, setThemeName } = useTheme();
   const { token } = theme.useToken();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-
-  useEffect(() => {
-    checkAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      fetchWarehouses();
-    }
-  }, [user]);
-
-  const checkAuth = async () => {
-    try {
-      const res = await fetch("/api/auth/me");
-      const data = await res.json();
-
-      if (data.success) {
-        setUser(data.data.user);
-      } else {
-        router.push("/login");
-      }
-    } catch {
-      router.push("/login");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchWarehouses = async () => {
-    try {
-      const res = await fetch("/api/inventory/warehouses");
-      const data = await res.json();
-      if (data.success) {
-        setWarehouses(data.data);
-      } else {
-        setWarehouses([]);
-      }
-    } catch (_error) {
-      console.error("Error fetching warehouses:", _error);
-      setWarehouses([]);
-    }
-  };
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
   };
+
+  // Use TanStack Query to fetch current user (me)
+  const { data: meData, isLoading: meLoading } = useQuery({
+    queryKey: ["me"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/me");
+      const body = await res.json();
+      return body;
+    },
+    retry: false,
+    staleTime: 0,
+  });
+
+  // If not authenticated, redirect to login
+  useEffect(() => {
+    if (meData && !meData.success) {
+      router.push("/login");
+    }
+  }, [meData, router]);
+
+  // derive user from meData (no local state)
+  const user: User | null = meData?.data?.user || null;
+
+  // Fetch warehouses using TanStack Query; enabled only when user exists
+  const { data: warehousesData = [], isLoading: warehousesLoading } = useQuery<
+    Warehouse[]
+  >({
+    queryKey: ["warehouses"],
+    queryFn: async () => {
+      const res = await fetch("/api/inventory/warehouses");
+      const body = await res.json();
+      return body.success ? body.data : [];
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const loading = meLoading || warehousesLoading || permLoading;
 
   const getBreadcrumbTitle = (path: string) => {
     const breadcrumbMap: Record<string, string> = {
@@ -173,7 +166,7 @@ export default function DashboardLayout({
   const menuItems = allMenuItems
     .map((item) => {
       if (item.title === "Kho" && item.children) {
-        const warehouseChildren = warehouses.map((wh) => ({
+        const warehouseChildren = (warehousesData || []).map((wh) => ({
           title: wh.warehouseName,
           href: `/inventory?warehouseId=${wh.id}`,
           permission: undefined,
@@ -203,95 +196,101 @@ export default function DashboardLayout({
     .filter((item): item is NonNullable<typeof item> => item !== null);
 
   const antdMenuItems: MenuProps["items"] = menuItems.map((item, idx) => {
+    // Use href path as the stable key for both root items and children
     if (item.href) {
       return {
         key: item.href,
         icon: item.icon,
         label: <Link href={item.href}>{item.title}</Link>,
       };
-    } else {
-      return {
-        key: `group-${idx}`,
-        icon: item.icon,
-        label: item.title,
-        children: item.children?.map((child) => ({
-          key: child.href,
-          label: (
-            <Link href={child.href}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <span>{child.title}</span>
-                {child.warehouseType && (
-                  <Tag
-                    color={child.warehouseType === "NVL" ? "purple" : "green"}
-                  >
-                    {child.warehouseType === "NVL" ? "NVL" : "TP"}
-                  </Tag>
-                )}
-              </div>
-            </Link>
-          ),
-        })),
-      };
     }
+
+    // Group item (has children)
+    return {
+      key: `group-${idx}`,
+      icon: item.icon,
+      label: item.title,
+      children: item.children?.map((child) => ({
+        key: child.href,
+        label: (
+          <Link href={child.href}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>{child.title}</span>
+              {child.warehouseType && (
+                <Tag color={child.warehouseType === "NVL" ? "purple" : "green"}>
+                  {child.warehouseType === "NVL" ? "NVL" : "TP"}
+                </Tag>
+              )}
+            </div>
+          </Link>
+        ),
+      })),
+    };
   });
 
+  // Helper: normalize a menu key (strip query string)
+  const normalizeKey = (key?: React.Key) =>
+    key ? String(key).split("?")[0] : "";
+
+  // Find the most specific menu key matching the current pathname
   const getSelectedKey = () => {
-    const matchedItem = antdMenuItems?.find((item) => {
-      if (item && "key" in item) {
-        if (typeof item.key === "string" && !item.key.startsWith("group-")) {
-          return (
-            pathname === item.key || pathname.startsWith(item.key.split("?")[0])
-          );
-        }
-        if (item && "children" in item && item.children) {
-          return item.children.some(
-            (child) =>
-              child &&
-              "key" in child &&
-              (pathname === child.key ||
-                pathname.startsWith(String(child.key).split("?")[0]))
-          );
+    let bestKey: string | null = null;
+    let bestLen = 0;
+
+    for (const item of antdMenuItems || []) {
+      // children entries (sub menu)
+      if (item && "children" in item && item.children) {
+        for (const child of item.children) {
+          if (!child || !("key" in child)) continue;
+          const key = normalizeKey(child.key);
+          if (!key) continue;
+          if (pathname === key || pathname.startsWith(key + "/")) {
+            if (key.length > bestLen) {
+              bestLen = key.length;
+              bestKey = String(child.key);
+            }
+          }
         }
       }
-      return false;
-    });
 
-    if (matchedItem && "children" in matchedItem && matchedItem.children) {
-      const selectedChild = matchedItem.children.find(
-        (child) =>
-          child &&
-          "key" in child &&
-          (pathname === child.key ||
-            pathname.startsWith(String(child.key).split("?")[0]))
-      );
-      return selectedChild?.key ? [String(selectedChild.key)] : [];
+      // top-level direct link entries
+      if (
+        item &&
+        "key" in item &&
+        typeof item.key === "string" &&
+        !item.key.startsWith("group-")
+      ) {
+        const key = normalizeKey(item.key);
+        if (!key) continue;
+        if (pathname === key || pathname.startsWith(key + "/")) {
+          if (key.length > bestLen) {
+            bestLen = key.length;
+            bestKey = item.key as string;
+          }
+        }
+      }
     }
 
-    return matchedItem?.key ? [String(matchedItem.key)] : [];
+    return bestKey ? [bestKey] : [];
   };
 
   const getOpenKeys = () => {
     const openKeys: string[] = [];
-    antdMenuItems?.forEach((item) => {
-      if (item && "children" in item && item.children) {
-        const hasActiveChild = item.children.some(
-          (child) =>
-            child &&
-            "key" in child &&
-            (pathname === child.key ||
-              pathname.startsWith(String(child.key).split("?")[0]))
-        );
-        if (hasActiveChild && item.key) {
-          openKeys.push(String(item.key));
-        }
-      }
-    });
+    for (const item of antdMenuItems || []) {
+      if (!item || !("children" in item) || !item.children) continue;
+      const hasActiveChild = item.children.some((child) => {
+        if (!child || !("key" in child)) return false;
+        const key = normalizeKey(child.key);
+        return key && (pathname === key || pathname.startsWith(key + "/"));
+      });
+      if (hasActiveChild && item.key) openKeys.push(String(item.key));
+    }
     return openKeys;
   };
 

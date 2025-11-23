@@ -12,7 +12,7 @@ import {
 } from "@/hooks/useCustomerGroupQuery";
 import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
-import { Button, Modal } from "antd";
+import { App, Button, Modal } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
@@ -47,9 +47,11 @@ export default function CustomerGroupsPage() {
   // State for drawer and modal
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<CustomerGroup | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<CustomerGroup | null>(
+    null
+  );
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-
+  const { modal } = App.useApp();
   const handleView = (group: CustomerGroup) => {
     setSelectedGroup(group);
     setDrawerVisible(true);
@@ -68,7 +70,7 @@ export default function CustomerGroupsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: "Xác nhận xóa",
       content: "Bạn có chắc muốn xóa nhóm khách hàng này?",
       okText: "Xóa",
@@ -99,14 +101,14 @@ export default function CustomerGroupsPage() {
   };
 
   const handleExportExcel = () => {
-    Modal.info({
+    modal.info({
       title: "Xuất Excel",
       content: "Tính năng xuất Excel đang được phát triển",
     });
   };
 
   const handleImportExcel = () => {
-    Modal.info({
+    modal.info({
       title: "Nhập Excel",
       content: "Tính năng nhập Excel đang được phát triển",
     });

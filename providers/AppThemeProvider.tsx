@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { ConfigProvider, theme as antdTheme } from "antd";
+import { ConfigProvider, theme as antdTheme, App as AntdApp } from "antd";
 import { themeColors, ThemeName, getThemeTokens } from "@/configs/theme";
 import LoaderApp from "@/components/LoaderApp";
 import vi from "antd/locale/vi_VN";
@@ -120,7 +120,7 @@ export const AppThemeProvider = ({
           },
         }}
       >
-        {children}
+        <AntdApp>{children}</AntdApp>
       </ConfigProvider>
     </ThemeContext.Provider>
   );

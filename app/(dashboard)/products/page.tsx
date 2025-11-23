@@ -21,7 +21,7 @@ import type {
   CreateProductDto,
   UpdateProductDto,
 } from "@/services/productService";
-import { Button, Tag, Modal, Dropdown } from "antd";
+import { Button, Tag, Modal, Dropdown, App } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
@@ -51,7 +51,7 @@ export default function ProductsPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-
+  const { modal } = App.useApp();
   const handleView = (product: Product) => {
     setSelectedProduct(product);
     setDrawerVisible(true);
@@ -70,7 +70,7 @@ export default function ProductsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: "Xác nhận xóa",
       content: "Bạn có chắc muốn xóa sản phẩm này?",
       okText: "Xóa",

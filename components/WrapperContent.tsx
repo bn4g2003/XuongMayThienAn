@@ -168,7 +168,6 @@ function WrapperContent<T extends object>({
           {header.filters && (
             <Form.Provider>
               <Popover
-                getPopupContainer={(node) => node}
                 trigger="click"
                 placement="bottomLeft"
                 content={

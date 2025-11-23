@@ -1,7 +1,20 @@
 "use client";
 
-import { Drawer, Descriptions, Button, Space, Steps, Checkbox, Modal } from "antd";
-import { EditOutlined, DeleteOutlined, PrinterOutlined } from "@ant-design/icons";
+import {
+  Drawer,
+  Descriptions,
+  Button,
+  Space,
+  Steps,
+  Checkbox,
+  Modal,
+  App,
+} from "antd";
+import {
+  EditOutlined,
+  DeleteOutlined,
+  PrinterOutlined,
+} from "@ant-design/icons";
 import type { OrderDetail } from "@/services/orderService";
 
 interface OrderDetailDrawerProps {
@@ -35,14 +48,19 @@ export default function OrderDetailDrawer({
   onLoadMaterialSuggestion,
   canEdit,
 }: OrderDetailDrawerProps) {
+  const { modal } = App.useApp();
   if (!order) return null;
 
   const handlePrint = () => {
     window.open(`/api/sales/orders/${order.id}/pdf`, "_blank");
   };
 
-  const handleConfirmStatus = (status: string, title: string, content: string) => {
-    Modal.confirm({
+  const handleConfirmStatus = (
+    status: string,
+    title: string,
+    content: string
+  ) => {
+    modal.confirm({
       title,
       content,
       okText: "Xác nhận",
@@ -132,59 +150,78 @@ export default function OrderDetailDrawer({
                   : 4
               }
               items={[
-                { title: "Chờ xác nhận", description: "Đơn hàng đang chờ xác nhận" },
-                { title: "Đã xác nhận", description: "Đơn hàng đã được xác nhận" },
+                {
+                  title: "Chờ xác nhận",
+                  description: "Đơn hàng đang chờ xác nhận",
+                },
+                {
+                  title: "Đã xác nhận",
+                  description: "Đơn hàng đã được xác nhận",
+                },
                 {
                   title: "Chờ nguyên liệu",
-                  description: order.status === "WAITING_MATERIAL" && canEdit ? (
-                    <Space direction="vertical" size="small">
-                      <span>Kiểm tra và chuẩn bị nguyên liệu</span>
-                      <Space>
-                        <Button
-                          size="small"
-                          type="primary"
-                          onClick={() => onLoadMaterialSuggestion(order.id)}
-                        >
-                          Gợi ý nhập hàng
-                        </Button>
-                        <Button
-                          size="small"
-                          onClick={() => onUpdateStatus(order.id, "IN_PRODUCTION")}
-                        >
-                          Bỏ qua - Bắt đầu SX
-                        </Button>
+                  description:
+                    order.status === "WAITING_MATERIAL" && canEdit ? (
+                      <Space direction="vertical" size="small">
+                        <span>Kiểm tra và chuẩn bị nguyên liệu</span>
+                        <Space>
+                          <Button
+                            size="small"
+                            type="primary"
+                            onClick={() => onLoadMaterialSuggestion(order.id)}
+                          >
+                            Gợi ý nhập hàng
+                          </Button>
+                          <Button
+                            size="small"
+                            onClick={() =>
+                              onUpdateStatus(order.id, "IN_PRODUCTION")
+                            }
+                          >
+                            Bỏ qua - Bắt đầu SX
+                          </Button>
+                        </Space>
                       </Space>
-                    </Space>
-                  ) : (
-                    "Kiểm tra và chuẩn bị nguyên liệu"
-                  ),
+                    ) : (
+                      "Kiểm tra và chuẩn bị nguyên liệu"
+                    ),
                 },
                 {
                   title: "Sản xuất",
                   description:
-                    order.status === "IN_PRODUCTION" && order.production && canEdit ? (
+                    order.status === "IN_PRODUCTION" &&
+                    order.production &&
+                    canEdit ? (
                       <Space direction="vertical" size="small" className="mt-2">
                         <Checkbox
                           checked={order.production.cutting}
-                          onChange={() => onUpdateProductionStep(order.id, "cutting")}
+                          onChange={() =>
+                            onUpdateProductionStep(order.id, "cutting")
+                          }
                         >
                           Cắt
                         </Checkbox>
                         <Checkbox
                           checked={order.production.sewing}
-                          onChange={() => onUpdateProductionStep(order.id, "sewing")}
+                          onChange={() =>
+                            onUpdateProductionStep(order.id, "sewing")
+                          }
                         >
                           May
                         </Checkbox>
                         <Checkbox
                           checked={order.production.finishing}
-                          onChange={() => onUpdateProductionStep(order.id, "finishing")}
+                          onChange={() =>
+                            onUpdateProductionStep(order.id, "finishing")
+                          }
                         >
                           Hoàn thiện
                         </Checkbox>
                         <Checkbox
                           checked={order.production.quality_check}
-                          onChange={() => onUpdateProductionStep(order.id, "quality_check")}
+                          onChange={() =>
+                            onUpdateProductionStep(order.id, "quality_check")
+                          }
                         >
                           Kiểm định
                         </Checkbox>
@@ -192,7 +229,9 @@ export default function OrderDetailDrawer({
                           <Button
                             type="primary"
                             size="small"
-                            onClick={() => onUpdateStatus(order.id, "COMPLETED")}
+                            onClick={() =>
+                              onUpdateStatus(order.id, "COMPLETED")
+                            }
                           >
                             Hoàn thành đơn hàng
                           </Button>
@@ -226,7 +265,9 @@ export default function OrderDetailDrawer({
                 <tr key={idx}>
                   <td className="px-3 py-2 border">{idx + 1}</td>
                   <td className="px-3 py-2 border">{item.productName}</td>
-                  <td className="px-3 py-2 text-right border">{item.quantity}</td>
+                  <td className="px-3 py-2 text-right border">
+                    {item.quantity}
+                  </td>
                   <td className="px-3 py-2 text-right border">
                     {item.unitPrice.toLocaleString()}
                   </td>
@@ -239,7 +280,10 @@ export default function OrderDetailDrawer({
           </table>
           <div className="mt-4 space-y-2 text-right">
             <div>
-              Tổng tiền: <span className="font-semibold">{order.totalAmount.toLocaleString()} đ</span>
+              Tổng tiền:{" "}
+              <span className="font-semibold">
+                {order.totalAmount.toLocaleString()} đ
+              </span>
             </div>
             {order.discountAmount > 0 && (
               <div className="text-red-600">
@@ -260,7 +304,11 @@ export default function OrderDetailDrawer({
                 <Button
                   danger
                   onClick={() =>
-                    handleConfirmStatus("CANCELLED", "Hủy đơn hàng", "Bạn có chắc muốn hủy đơn hàng này?")
+                    handleConfirmStatus(
+                      "CANCELLED",
+                      "Hủy đơn hàng",
+                      "Bạn có chắc muốn hủy đơn hàng này?"
+                    )
                   }
                 >
                   Hủy đơn
@@ -268,7 +316,11 @@ export default function OrderDetailDrawer({
                 <Button
                   type="primary"
                   onClick={() =>
-                    handleConfirmStatus("CONFIRMED", "Xác nhận đơn hàng", "Xác nhận đơn hàng này?")
+                    handleConfirmStatus(
+                      "CONFIRMED",
+                      "Xác nhận đơn hàng",
+                      "Xác nhận đơn hàng này?"
+                    )
                   }
                 >
                   Xác nhận đơn
@@ -277,10 +329,15 @@ export default function OrderDetailDrawer({
             )}
             {order.status === "CONFIRMED" && (
               <>
-                <Button onClick={() => onUpdateStatus(order.id, "WAITING_MATERIAL")}>
+                <Button
+                  onClick={() => onUpdateStatus(order.id, "WAITING_MATERIAL")}
+                >
                   → Chờ nguyên liệu
                 </Button>
-                <Button type="primary" onClick={() => onUpdateStatus(order.id, "IN_PRODUCTION")}>
+                <Button
+                  type="primary"
+                  onClick={() => onUpdateStatus(order.id, "IN_PRODUCTION")}
+                >
                   → Bắt đầu SX
                 </Button>
               </>

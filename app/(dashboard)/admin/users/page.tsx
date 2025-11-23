@@ -12,7 +12,7 @@ import {
 } from "@/hooks/useUserQuery";
 import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
-import { Button, Tag, Modal } from "antd";
+import { Button, Tag, Modal, App } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
@@ -61,7 +61,7 @@ export default function UsersPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-
+  const { modal } = App.useApp();
   const handleView = (user: User) => {
     setSelectedUser(user);
     setDrawerVisible(true);
@@ -80,7 +80,7 @@ export default function UsersPage() {
   };
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: "Xác nhận xóa",
       content: "Bạn có chắc muốn xóa người dùng này?",
       okText: "Xóa",

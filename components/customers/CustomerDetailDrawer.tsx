@@ -1,7 +1,12 @@
 "use client";
 
 import { Drawer, Descriptions, Tag, Button, Space } from "antd";
-import { EditOutlined, DeleteOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  DeleteOutlined,
+  LockOutlined,
+  UnlockOutlined,
+} from "@ant-design/icons";
 import type { Customer } from "@/services/customerService";
 
 interface CustomerDetailDrawerProps {
@@ -31,7 +36,7 @@ export default function CustomerDetailDrawer({
       placement="right"
       onClose={onClose}
       open={open}
-      width={600}
+      size={600}
       extra={
         <Space>
           {canEdit && (
@@ -75,7 +80,11 @@ export default function CustomerDetailDrawer({
           {customer.groupName || "-"}
         </Descriptions.Item>
         <Descriptions.Item label="Công nợ">
-          <span className={customer.debtAmount > 0 ? "text-red-600 font-semibold" : ""}>
+          <span
+            className={
+              customer.debtAmount > 0 ? "text-red-600 font-semibold" : ""
+            }
+          >
             {customer.debtAmount.toLocaleString()} đ
           </span>
         </Descriptions.Item>

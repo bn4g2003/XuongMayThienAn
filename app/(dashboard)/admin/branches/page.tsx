@@ -7,7 +7,7 @@ import { useBranches, BRANCH_KEYS } from "@/hooks/useCommonQuery";
 import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
 import type { TableColumnsType } from "antd";
-import { Button, Tag, Modal, Dropdown } from "antd";
+import { Button, Tag, Modal, Dropdown, App } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
@@ -25,7 +25,7 @@ import type { Branch } from "@/services/commonService";
 
 export default function BranchesPage() {
   const { can } = usePermissions();
-  const { updateQuery, reset, applyFilter, updateQueries, query } = useFilter();
+  const { reset, applyFilter, updateQueries, query } = useFilter();
 
   const { data: branches = [], isLoading, isFetching } = useBranches();
   const qc = useQueryClient();
@@ -64,6 +64,7 @@ export default function BranchesPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const { modal } = App.useApp();
 
   const handleView = (b: Branch) => {
     setSelectedBranch(b);
@@ -81,7 +82,7 @@ export default function BranchesPage() {
   };
 
   const handleDelete = (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: "Xác nhận xóa",
       content: "Bạn có chắc muốn xóa chi nhánh này?",
       okText: "Xóa",

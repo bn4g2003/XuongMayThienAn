@@ -12,6 +12,7 @@ import {
   Dropdown,
   Descriptions,
   Switch,
+  App,
 } from "antd";
 import type { TableColumnsType } from "antd";
 import {
@@ -118,7 +119,7 @@ export default function WarehousesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Warehouse | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-
+  const { modal } = App.useApp();
   const handleView = (row: Warehouse) => {
     setSelected(row);
     setDrawerOpen(true);
@@ -137,7 +138,7 @@ export default function WarehousesPage() {
   };
 
   const handleDelete = (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: "Xác nhận xóa",
       content: "Bạn có chắc muốn xóa kho này?",
       okText: "Xóa",

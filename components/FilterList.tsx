@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { FilterField } from "@/types";
-import { Button, DatePicker, Divider, Form, Select, Space, Input } from "antd";
+import { Button, DatePicker, Divider, Form, Select, Input } from "antd";
 import { FormInstance } from "antd/lib";
 
 interface FilterListProps {
@@ -121,18 +121,10 @@ export const FilterList: React.FC<FilterListProps> = ({
         <Divider className=" my-2" />
 
         <div className="flex justify-end gap-2 mt-2">
-          <Button
-            type="default"
-            size="small"
-            onClick={onCancel}
-          >
+          <Button type="default" size="small" onClick={onCancel}>
             Hủy
           </Button>
-          <Button
-            type="primary"
-            size="small"
-            htmlType="submit"
-          >
+          <Button type="primary" size="small" htmlType="submit">
             Áp dụng
           </Button>
         </div>

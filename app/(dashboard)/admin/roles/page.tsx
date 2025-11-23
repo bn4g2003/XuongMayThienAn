@@ -9,6 +9,7 @@ import {
   Input,
   Dropdown,
   Descriptions,
+  App,
 } from "antd";
 import type { TableColumnsType } from "antd";
 import {
@@ -105,7 +106,7 @@ export default function RolesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Role | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-
+  const { modal } = App.useApp();
   const handleView = (row: Role) => {
     setSelected(row);
     setDrawerOpen(true);
@@ -124,7 +125,7 @@ export default function RolesPage() {
   };
 
   const handleDelete = (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: "Xác nhận xóa",
       content: "Bạn có chắc muốn xóa vai trò này?",
       okText: "Xóa",
