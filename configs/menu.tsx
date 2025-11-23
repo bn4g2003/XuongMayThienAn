@@ -86,6 +86,11 @@ export const allMenuItems: Array<{
         permission: "sales.customers",
       },
       {
+        title: "Nhóm khách hàng",
+        href: "/sales/customer-groups",
+        permission: "sales.customers",
+      },
+      {
         title: "Đơn hàng",
         href: "/sales/orders",
         permission: "sales.orders",

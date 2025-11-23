@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
         c.phone,
         c.email,
         c.address,
+        c.customer_group_id as "customerGroupId",
         cg.group_name as "groupName",
         COALESCE(cg.price_multiplier, 0) as "priceMultiplier",
         c.debt_amount as "debtAmount",

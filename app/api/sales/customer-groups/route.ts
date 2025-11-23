@@ -15,13 +15,17 @@ export async function GET() {
 
     const result = await query(
       `SELECT 
-        id,
-        group_code as "groupCode",
-        group_name as "groupName",
-        price_multiplier as "priceMultiplier",
-        description
-       FROM customer_groups
-       ORDER BY group_name`
+        cg.id,
+        cg.group_code as "groupCode",
+        cg.group_name as "groupName",
+        cg.price_multiplier as "priceMultiplier",
+        cg.description,
+        cg.created_at as "createdAt",
+        COUNT(c.id) as "customerCount"
+       FROM customer_groups cg
+       LEFT JOIN customers c ON c.customer_group_id = cg.id
+       GROUP BY cg.id, cg.group_code, cg.group_name, cg.price_multiplier, cg.description, cg.created_at
+       ORDER BY cg.group_name`
     );
 
     return NextResponse.json<ApiResponse>({
