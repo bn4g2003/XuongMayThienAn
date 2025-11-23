@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
+import WrapperContent from '@/components/WrapperContent';
+import { PlusOutlined, DownloadOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
 
 interface Supplier {
   id: number;
@@ -39,6 +41,7 @@ export default function SuppliersPage() {
     groupName: '',
     description: '',
   });
+  const [filterQueries, setFilterQueries] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (!permLoading && can('purchasing.suppliers', 'view')) {
@@ -215,84 +218,136 @@ export default function SuppliersPage() {
     }
   };
 
-  if (permLoading || loading) return <div className="text-center py-8">Đang tải...</div>;
+  const handleResetAll = () => {
+    setFilterQueries({});
+    setSearchTerm('');
+  };
 
-  if (!can('purchasing.suppliers', 'view')) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-700 mb-2">Không có quyền truy cập</h2>
-        <p className="text-gray-500">Bạn không có quyền xem danh sách nhà cung cấp</p>
-      </div>
-    );
-  }
+  const handleExportExcel = () => {
+    alert('Chức năng xuất Excel đang được phát triển');
+  };
 
-  const filteredSuppliers = suppliers.filter(s =>
-    s.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.supplierCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.phone?.includes(searchTerm)
-  );
+  const handleImportExcel = () => {
+    alert('Chức năng nhập Excel đang được phát triển');
+  };
+
+  const filteredSuppliers = suppliers.filter(s => {
+    const searchKey = 'search,supplierName,supplierCode,phone';
+    const searchValue = filterQueries[searchKey] || '';
+    const matchSearch = !searchValue || 
+      s.supplierName.toLowerCase().includes(searchValue.toLowerCase()) ||
+      s.supplierCode.toLowerCase().includes(searchValue.toLowerCase()) ||
+      s.phone?.includes(searchValue);
+    
+    const statusValue = filterQueries['isActive'];
+    const matchStatus = statusValue === undefined || s.isActive === (statusValue === 'true');
+    
+    return matchSearch && matchStatus;
+  });
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Quản lý nhà cung cấp</h1>
-        {activeTab === 'suppliers' && can('purchasing.suppliers', 'create') && (
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            ➕ Thêm nhà cung cấp
-          </button>
-        )}
-        {activeTab === 'groups' && can('purchasing.suppliers', 'create') && (
-          <button
-            onClick={handleCreateGroup}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            ➕ Thêm nhóm
-          </button>
-        )}
-      </div>
+    <>
+      <WrapperContent<Supplier>
+        title="Quản lý nhà cung cấp"
+        isNotAccessible={!can('purchasing.suppliers', 'view')}
+        isLoading={permLoading || loading}
+        header={{
+          buttonEnds: can('purchasing.suppliers', 'create')
+            ? [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+                {
+                  type: 'primary',
+                  name: activeTab === 'suppliers' ? 'Thêm NCC' : 'Thêm nhóm',
+                  onClick: activeTab === 'suppliers' ? handleCreate : handleCreateGroup,
+                  icon: <PlusOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Xuất Excel',
+                  onClick: handleExportExcel,
+                  icon: <DownloadOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Nhập Excel',
+                  onClick: handleImportExcel,
+                  icon: <UploadOutlined />,
+                },
+              ]
+            : [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+              ],
+          searchInput: activeTab === 'suppliers' ? {
+            placeholder: 'Tìm theo tên, mã, số điện thoại...',
+            filterKeys: ['supplierName', 'supplierCode', 'phone'],
+          } : undefined,
+          filters: activeTab === 'suppliers' ? {
+            fields: [
+              {
+                type: 'select',
+                name: 'isActive',
+                label: 'Trạng thái',
+                options: [
+                  { label: 'Hoạt động', value: 'true' },
+                  { label: 'Ngừng', value: 'false' },
+                ],
+              },
+            ],
+            onApplyFilter: (arr) => {
+              const newQueries: Record<string, any> = { ...filterQueries };
+              arr.forEach(({ key, value }) => {
+                newQueries[key] = value;
+              });
+              setFilterQueries(newQueries);
+            },
+            onReset: () => {
+              setFilterQueries({});
+              setSearchTerm('');
+            },
+            query: filterQueries,
+          } : undefined,
+        }}
+      >
+        <div className="space-y-6">
 
-      {/* Tabs */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="flex border-b">
-          <button
-            onClick={() => setActiveTab('suppliers')}
-            className={`px-6 py-3 font-medium ${
-              activeTab === 'suppliers'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            🏢 Nhà cung cấp
-          </button>
-          <button
-            onClick={() => setActiveTab('groups')}
-            className={`px-6 py-3 font-medium ${
-              activeTab === 'groups'
-                ? 'border-b-2 border-green-600 text-green-600'
-                : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            📊 Nhóm NCC
-          </button>
-        </div>
-      </div>
-
-      {activeTab === 'suppliers' && (
-        <>
-          <div className="bg-white rounded-lg shadow p-4">
-            <input
-              type="text"
-              placeholder="🔍 Tìm theo tên, mã, số điện thoại..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg"
-            />
+          {/* Tabs */}
+          <div className="bg-white rounded-lg shadow">
+            <div className="flex border-b">
+              <button
+                onClick={() => setActiveTab('suppliers')}
+                className={`px-6 py-3 font-medium ${
+                  activeTab === 'suppliers'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                🏢 Nhà cung cấp
+              </button>
+              <button
+                onClick={() => setActiveTab('groups')}
+                className={`px-6 py-3 font-medium ${
+                  activeTab === 'groups'
+                    ? 'border-b-2 border-green-600 text-green-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                📊 Nhóm NCC
+              </button>
+            </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          {activeTab === 'suppliers' && (
+            <div className="bg-white rounded-lg shadow overflow-hidden">
             {filteredSuppliers.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <div className="text-6xl mb-2">🏢</div>
@@ -355,12 +410,11 @@ export default function SuppliersPage() {
                 </tbody>
               </table>
             )}
-          </div>
-        </>
-      )}
+            </div>
+          )}
 
-      {activeTab === 'groups' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {activeTab === 'groups' && (
+            <div className="bg-white rounded-lg shadow overflow-hidden">
           {groups.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <div className="text-6xl mb-2">📊</div>
@@ -405,8 +459,10 @@ export default function SuppliersPage() {
               </tbody>
             </table>
           )}
+            </div>
+          )}
         </div>
-      )}
+      </WrapperContent>
 
       {/* Modal Supplier */}
       {showModal && (
@@ -554,6 +610,6 @@ export default function SuppliersPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

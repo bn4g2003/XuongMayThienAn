@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
+import WrapperContent from '@/components/WrapperContent';
+import { PlusOutlined, DownloadOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
 import Modal from '@/components/Modal';
 
 interface FinancialCategory {
@@ -21,6 +23,8 @@ export default function FinancialCategoriesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<FinancialCategory | null>(null);
   const [filterType, setFilterType] = useState<'ALL' | 'THU' | 'CHI'>('ALL');
+  const [filterQueries, setFilterQueries] = useState<Record<string, any>>({});
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [formData, setFormData] = useState({
     categoryCode: '',
@@ -122,53 +126,123 @@ export default function FinancialCategoriesPage() {
     setEditingCategory(null);
   };
 
-  const filteredCategories = categories.filter(cat => 
-    filterType === 'ALL' || cat.type === filterType
-  );
+  const handleResetAll = () => {
+    setFilterQueries({});
+    setSearchTerm('');
+    setFilterType('ALL');
+  };
 
-  if (loading) return <div>Đang tải...</div>;
+  const handleExportExcel = () => {
+    alert('Chức năng xuất Excel đang được phát triển');
+  };
+
+  const handleImportExcel = () => {
+    alert('Chức năng nhập Excel đang được phát triển');
+  };
+
+  const filteredCategories = categories.filter(cat => {
+    const searchKey = 'search,categoryCode,categoryName';
+    const searchValue = filterQueries[searchKey] || '';
+    const matchSearch = !searchValue || 
+      cat.categoryCode.toLowerCase().includes(searchValue.toLowerCase()) ||
+      cat.categoryName.toLowerCase().includes(searchValue.toLowerCase());
+    
+    const typeValue = filterQueries['type'];
+    const matchType = !typeValue || cat.type === typeValue;
+    
+    const statusValue = filterQueries['isActive'];
+    const matchStatus = statusValue === undefined || cat.isActive === (statusValue === 'true');
+    
+    return matchSearch && matchType && matchStatus;
+  });
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Danh mục tài chính</h1>
-        {can('finance.categories', 'create') && (
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            + Thêm danh mục
-          </button>
-        )}
-      </div>
-
-      {/* Filter */}
-      <div className="mb-4 flex gap-2">
-        <button
-          onClick={() => setFilterType('ALL')}
-          className={`px-4 py-2 rounded ${filterType === 'ALL' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-        >
-          Tất cả
-        </button>
-        <button
-          onClick={() => setFilterType('THU')}
-          className={`px-4 py-2 rounded ${filterType === 'THU' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}
-        >
-          Thu
-        </button>
-        <button
-          onClick={() => setFilterType('CHI')}
-          className={`px-4 py-2 rounded ${filterType === 'CHI' ? 'bg-red-600 text-white' : 'bg-gray-200'}`}
-        >
-          Chi
-        </button>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+    <>
+      <WrapperContent<FinancialCategory>
+        title="Danh mục tài chính"
+        isNotAccessible={!can('finance.categories', 'view')}
+        isLoading={loading}
+        header={{
+          buttonEnds: can('finance.categories', 'create')
+            ? [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+                {
+                  type: 'primary',
+                  name: 'Thêm',
+                  onClick: () => {
+                    resetForm();
+                    setShowModal(true);
+                  },
+                  icon: <PlusOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Xuất Excel',
+                  onClick: handleExportExcel,
+                  icon: <DownloadOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Nhập Excel',
+                  onClick: handleImportExcel,
+                  icon: <UploadOutlined />,
+                },
+              ]
+            : [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+              ],
+          searchInput: {
+            placeholder: 'Tìm theo mã, tên danh mục...',
+            filterKeys: ['categoryCode', 'categoryName'],
+          },
+          filters: {
+            fields: [
+              {
+                type: 'select',
+                name: 'type',
+                label: 'Loại',
+                options: [
+                  { label: 'Thu', value: 'THU' },
+                  { label: 'Chi', value: 'CHI' },
+                ],
+              },
+              {
+                type: 'select',
+                name: 'isActive',
+                label: 'Trạng thái',
+                options: [
+                  { label: 'Hoạt động', value: 'true' },
+                  { label: 'Ngừng', value: 'false' },
+                ],
+              },
+            ],
+            onApplyFilter: (arr) => {
+              const newQueries: Record<string, any> = { ...filterQueries };
+              arr.forEach(({ key, value }) => {
+                newQueries[key] = value;
+              });
+              setFilterQueries(newQueries);
+            },
+            onReset: () => {
+              setFilterQueries({});
+              setSearchTerm('');
+              setFilterType('ALL');
+            },
+            query: filterQueries,
+          },
+        }}
+      >
+        <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full">
           <thead className="bg-gray-50">
             <tr>
@@ -226,7 +300,8 @@ export default function FinancialCategoriesPage() {
             ))}
           </tbody>
         </table>
-      </div>
+        </div>
+      </WrapperContent>
 
       {/* Modal */}
       <Modal
@@ -304,6 +379,6 @@ export default function FinancialCategoriesPage() {
           </div>
         </form>
       </Modal>
-    </div>
+    </>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
+import WrapperContent from '@/components/WrapperContent';
+import { PlusOutlined, DownloadOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
 import Modal from '@/components/Modal';
 
 interface BankAccount {
@@ -21,6 +23,8 @@ export default function BankAccountsPage() {
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [filterQueries, setFilterQueries] = useState<Record<string, any>>({});
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [formData, setFormData] = useState({
     accountNumber: '',
@@ -87,37 +91,123 @@ export default function BankAccountsPage() {
     });
   };
 
-  const totalBalance = accounts.reduce((sum, acc) => sum + parseFloat(acc.balance.toString()), 0);
+  const handleResetAll = () => {
+    setFilterQueries({});
+    setSearchTerm('');
+  };
 
-  if (loading) return <div>Đang tải...</div>;
+  const handleExportExcel = () => {
+    alert('Chức năng xuất Excel đang được phát triển');
+  };
+
+  const handleImportExcel = () => {
+    alert('Chức năng nhập Excel đang được phát triển');
+  };
+
+  const filteredAccounts = accounts.filter(acc => {
+    const searchKey = 'search,accountNumber,accountHolder,bankName';
+    const searchValue = filterQueries[searchKey] || '';
+    const matchSearch = !searchValue || 
+      acc.accountNumber.toLowerCase().includes(searchValue.toLowerCase()) ||
+      acc.accountHolder.toLowerCase().includes(searchValue.toLowerCase()) ||
+      acc.bankName.toLowerCase().includes(searchValue.toLowerCase());
+    
+    const statusValue = filterQueries['isActive'];
+    const matchStatus = statusValue === undefined || acc.isActive === (statusValue === 'true');
+    
+    return matchSearch && matchStatus;
+  });
+
+  const totalBalance = filteredAccounts.reduce((sum, acc) => sum + parseFloat(acc.balance.toString()), 0);
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Tài khoản ngân hàng</h1>
-        {can('finance.cashbooks', 'create') && (
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            + Thêm tài khoản
-          </button>
-        )}
-      </div>
+    <>
+      <WrapperContent<BankAccount>
+        title="Tài khoản ngân hàng"
+        isNotAccessible={!can('finance.cashbooks', 'view')}
+        isLoading={loading}
+        header={{
+          buttonEnds: can('finance.cashbooks', 'create')
+            ? [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+                {
+                  type: 'primary',
+                  name: 'Thêm',
+                  onClick: () => {
+                    resetForm();
+                    setShowModal(true);
+                  },
+                  icon: <PlusOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Xuất Excel',
+                  onClick: handleExportExcel,
+                  icon: <DownloadOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Nhập Excel',
+                  onClick: handleImportExcel,
+                  icon: <UploadOutlined />,
+                },
+              ]
+            : [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+              ],
+          searchInput: {
+            placeholder: 'Tìm theo số TK, chủ TK, ngân hàng...',
+            filterKeys: ['accountNumber', 'accountHolder', 'bankName'],
+          },
+          filters: {
+            fields: [
+              {
+                type: 'select',
+                name: 'isActive',
+                label: 'Trạng thái',
+                options: [
+                  { label: 'Hoạt động', value: 'true' },
+                  { label: 'Ngừng', value: 'false' },
+                ],
+              },
+            ],
+            onApplyFilter: (arr) => {
+              const newQueries: Record<string, any> = { ...filterQueries };
+              arr.forEach(({ key, value }) => {
+                newQueries[key] = value;
+              });
+              setFilterQueries(newQueries);
+            },
+            onReset: () => {
+              setFilterQueries({});
+              setSearchTerm('');
+            },
+            query: filterQueries,
+          },
+        }}
+      >
+        <div className="space-y-6">
 
-      {/* Summary */}
-      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+          {/* Summary */}
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
         <div className="text-sm text-blue-600 mb-1">Tổng số dư</div>
         <div className="text-2xl font-bold text-blue-700">
           {totalBalance.toLocaleString('vi-VN')} đ
-        </div>
-      </div>
+          </div>
+          </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+          {/* Table */}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full">
           <thead className="bg-gray-50">
             <tr>
@@ -131,7 +221,7 @@ export default function BankAccountsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {accounts.map((account) => (
+            {filteredAccounts.map((account) => (
               <tr key={account.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{account.accountNumber}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">{account.accountHolder}</td>
@@ -152,7 +242,9 @@ export default function BankAccountsPage() {
             ))}
           </tbody>
         </table>
-      </div>
+          </div>
+        </div>
+      </WrapperContent>
 
       {/* Modal */}
       <Modal
@@ -242,6 +334,6 @@ export default function BankAccountsPage() {
           </div>
         </form>
       </Modal>
-    </div>
+    </>
   );
 }
