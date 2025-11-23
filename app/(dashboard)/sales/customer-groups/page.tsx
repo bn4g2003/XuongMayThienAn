@@ -4,22 +4,19 @@ import { useState } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import useFilter from "@/hooks/useFilter";
 import {
-  useCustomers,
-  useDeleteCustomer,
-  useCreateCustomer,
-  useUpdateCustomer,
   useCustomerGroups,
-  CUSTOMER_KEYS,
-} from "@/hooks/useCustomerQuery";
+  useDeleteCustomerGroup,
+  useCreateCustomerGroup,
+  useUpdateCustomerGroup,
+  CUSTOMER_GROUP_KEYS,
+} from "@/hooks/useCustomerGroupQuery";
 import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
-import { Button, Tag, Modal } from "antd";
+import { Button, Modal } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  LockOutlined,
-  UnlockOutlined,
   MoreOutlined,
   EyeOutlined,
   UploadOutlined,
@@ -28,53 +25,52 @@ import {
 import type { TableColumnsType } from "antd";
 import useColumn from "@/hooks/useColumn";
 import { Dropdown } from "antd";
-import type { Customer } from "@/services/customerService";
-import CustomerDetailDrawer from "@/components/customers/CustomerDetailDrawer";
-import CustomerFormModal, {
-  type CustomerFormValues,
-} from "@/components/customers/CustomerFormModal";
+import type { CustomerGroup } from "@/services/customerGroupService";
+import CustomerGroupDetailDrawer from "@/components/customers/CustomerGroupDetailDrawer";
+import CustomerGroupFormModal, {
+  type CustomerGroupFormValues,
+} from "@/components/customers/CustomerGroupFormModal";
 
-export default function CustomersPage() {
+export default function CustomerGroupsPage() {
   const { can } = usePermissions();
   const { reset, applyFilter, updateQueries, query } = useFilter();
 
   // React Query hooks
-  const { data: customers = [], isLoading, isFetching } = useCustomers();
-  const { data: groups = [] } = useCustomerGroups();
-  const deleteMutation = useDeleteCustomer();
-  const createMutation = useCreateCustomer();
-  const updateMutation = useUpdateCustomer();
+  const { data: groups = [], isLoading, isFetching } = useCustomerGroups();
+  const deleteMutation = useDeleteCustomerGroup();
+  const createMutation = useCreateCustomerGroup();
+  const updateMutation = useUpdateCustomerGroup();
 
-  // Apply filter to get filtered customers
-  const filteredCustomers = applyFilter(customers);
+  // Apply filter to get filtered groups
+  const filteredGroups = applyFilter(groups);
 
   // State for drawer and modal
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<CustomerGroup | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
 
-  const handleView = (customer: Customer) => {
-    setSelectedCustomer(customer);
+  const handleView = (group: CustomerGroup) => {
+    setSelectedGroup(group);
     setDrawerVisible(true);
   };
 
   const handleCreate = () => {
     setModalMode("create");
-    setSelectedCustomer(null);
+    setSelectedGroup(null);
     setModalVisible(true);
   };
 
-  const handleEdit = (customer: Customer) => {
+  const handleEdit = (group: CustomerGroup) => {
     setModalMode("edit");
-    setSelectedCustomer(customer);
+    setSelectedGroup(group);
     setModalVisible(true);
   };
 
   const handleDelete = async (id: number) => {
     Modal.confirm({
       title: "Xác nhận xóa",
-      content: "Bạn có chắc muốn xóa khách hàng này?",
+      content: "Bạn có chắc muốn xóa nhóm khách hàng này?",
       okText: "Xóa",
       cancelText: "Hủy",
       okButtonProps: { danger: true },
@@ -82,31 +78,27 @@ export default function CustomersPage() {
     });
   };
 
-  const handleModalSubmit = (values: CustomerFormValues) => {
+  const handleModalSubmit = (values: CustomerGroupFormValues) => {
     if (modalMode === "create") {
       createMutation.mutate(
         values as unknown as Parameters<typeof createMutation.mutate>[0],
         { onSuccess: () => setModalVisible(false) }
       );
-    } else if (selectedCustomer) {
+    } else if (selectedGroup) {
       const updatePayload = {
-        customerName: values.customerName,
-        phone: values.phone,
-        email: values.email,
-        address: values.address,
-        customerGroupId: values.customerGroupId,
-        isActive: !!values.isActive,
+        groupName: values.groupName,
+        priceMultiplier: values.priceMultiplier,
+        description: values.description,
       };
 
       updateMutation.mutate(
-        { id: selectedCustomer.id, data: updatePayload },
+        { id: selectedGroup.id, data: updatePayload },
         { onSuccess: () => setModalVisible(false) }
       );
     }
   };
 
   const handleExportExcel = () => {
-    // TODO: Implement Excel export
     Modal.info({
       title: "Xuất Excel",
       content: "Tính năng xuất Excel đang được phát triển",
@@ -114,75 +106,51 @@ export default function CustomersPage() {
   };
 
   const handleImportExcel = () => {
-    // TODO: Implement Excel import
     Modal.info({
       title: "Nhập Excel",
       content: "Tính năng nhập Excel đang được phát triển",
     });
   };
 
-  const columnsAll: TableColumnsType<Customer> = [
+  const columnsAll: TableColumnsType<CustomerGroup> = [
     {
-      title: "Mã KH",
-      dataIndex: "customerCode",
-      key: "customerCode",
-      width: 120,
+      title: "Mã nhóm",
+      dataIndex: "groupCode",
+      key: "groupCode",
+      width: 150,
       fixed: "left",
     },
     {
-      title: "Tên khách hàng",
-      dataIndex: "customerName",
-      key: "customerName",
-      width: 200,
-    },
-    {
-      title: "Điện thoại",
-      dataIndex: "phone",
-      key: "phone",
-      width: 130,
-    },
-    {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      width: 180,
-    },
-    {
-      title: "Địa chỉ",
-      dataIndex: "address",
-      key: "address",
-      width: 200,
-    },
-    {
-      title: "Nhóm KH",
+      title: "Tên nhóm",
       dataIndex: "groupName",
       key: "groupName",
-      width: 150,
+      width: 200,
     },
     {
-      title: "Công nợ",
-      dataIndex: "debtAmount",
-      key: "debtAmount",
+      title: "Hệ số giá",
+      dataIndex: "priceMultiplier",
+      key: "priceMultiplier",
       width: 130,
       align: "right",
-      render: (amount: number) => (
-        <span className={amount > 0 ? "text-red-600 font-semibold" : ""}>
-          {amount.toLocaleString()} đ
-        </span>
+      render: (value: number) => (
+        <span className="font-semibold text-blue-600">{value}%</span>
       ),
     },
     {
-      title: "Trạng thái",
-      dataIndex: "isActive",
-      key: "isActive",
-      width: 120,
-      render: (isActive: boolean) => (
-        <Tag
-          color={isActive ? "success" : "error"}
-          icon={isActive ? <UnlockOutlined /> : <LockOutlined />}
-        >
-          {isActive ? "Hoạt động" : "Ngừng"}
-        </Tag>
+      title: "Mô tả",
+      dataIndex: "description",
+      key: "description",
+      width: 300,
+      render: (text: string) => text || "-",
+    },
+    {
+      title: "Số khách hàng",
+      dataIndex: "customerCount",
+      key: "customerCount",
+      width: 130,
+      align: "right",
+      render: (count: number) => (
+        <span className="font-medium">{count || 0}</span>
       ),
     },
     {
@@ -190,7 +158,7 @@ export default function CustomersPage() {
       key: "action",
       width: 100,
       fixed: "right",
-      render: (_: unknown, record: Customer) => {
+      render: (_: unknown, record: CustomerGroup) => {
         const menuItems = [
           {
             key: "view",
@@ -236,11 +204,11 @@ export default function CustomersPage() {
 
   return (
     <>
-      <WrapperContent<Customer>
+      <WrapperContent<CustomerGroup>
         isNotAccessible={!can("sales.customers", "view")}
         isLoading={isLoading}
         header={{
-          refetchDataWithKeys: CUSTOMER_KEYS.all,
+          refetchDataWithKeys: CUSTOMER_GROUP_KEYS.all,
           buttonEnds: can("sales.customers", "create")
             ? [
                 {
@@ -264,27 +232,21 @@ export default function CustomersPage() {
               ]
             : undefined,
           searchInput: {
-            placeholder: "Tìm kiếm khách hàng",
-            filterKeys: ["customerName", "customerCode", "phone", "email"],
+            placeholder: "Tìm kiếm nhóm khách hàng",
+            filterKeys: ["groupName", "groupCode", "description"],
           },
           filters: {
             fields: [
               {
                 type: "select",
-                name: "customerGroupId",
-                label: "Nhóm khách hàng",
-                options: groups.map((g) => ({
-                  label: g.groupName,
-                  value: g.id.toString(),
-                })),
-              },
-              {
-                type: "select",
-                name: "isActive",
-                label: "Trạng thái",
+                name: "priceMultiplier",
+                label: "Hệ số giá",
                 options: [
-                  { label: "Hoạt động", value: true },
-                  { label: "Ngừng", value: false },
+                  { label: "Không giảm (0%)", value: "0" },
+                  { label: "Giảm 5%", value: "5" },
+                  { label: "Giảm 10%", value: "10" },
+                  { label: "Giảm 15%", value: "15" },
+                  { label: "Giảm 20%", value: "20" },
                 ],
               },
             ],
@@ -301,20 +263,20 @@ export default function CustomersPage() {
       >
         <CommonTable
           columns={getVisibleColumns()}
-          dataSource={filteredCustomers}
+          dataSource={filteredGroups}
           loading={isLoading || deleteMutation.isPending || isFetching}
           paging
           rank
         />
       </WrapperContent>
 
-      <CustomerDetailDrawer
+      <CustomerGroupDetailDrawer
         open={drawerVisible}
-        customer={selectedCustomer}
+        group={selectedGroup}
         onClose={() => setDrawerVisible(false)}
-        onEdit={(c) => {
+        onEdit={(g) => {
           setDrawerVisible(false);
-          handleEdit(c);
+          handleEdit(g);
         }}
         onDelete={(id) => {
           setDrawerVisible(false);
@@ -324,11 +286,10 @@ export default function CustomersPage() {
         canDelete={can("sales.customers", "delete")}
       />
 
-      <CustomerFormModal
+      <CustomerGroupFormModal
         open={modalVisible}
         mode={modalMode}
-        customer={selectedCustomer}
-        groups={groups}
+        group={selectedGroup}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
         onCancel={() => setModalVisible(false)}
         onSubmit={handleModalSubmit}

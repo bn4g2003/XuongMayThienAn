@@ -19,14 +19,14 @@ export async function PUT(
     const resolvedParams = await params;
     const customerId = parseInt(resolvedParams.id);
     const body = await request.json();
-    const { customerName, phone, email, address, customerGroupId } = body;
+    const { customerName, phone, email, address, customerGroupId, isActive } = body;
 
     await query(
       `UPDATE customers 
        SET customer_name = $1, phone = $2, email = $3, address = $4,
-           customer_group_id = $5, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $6`,
-      [customerName, phone || null, email || null, address || null, customerGroupId || null, customerId]
+           customer_group_id = $5, is_active = $6, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7`,
+      [customerName, phone || null, email || null, address || null, customerGroupId || null, isActive !== undefined ? isActive : true, customerId]
     );
 
     return NextResponse.json<ApiResponse>({

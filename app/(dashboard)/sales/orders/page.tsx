@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
+import WrapperContent from '@/components/WrapperContent';
+import { PlusOutlined, DownloadOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
 
 interface Order {
   id: number;
@@ -36,6 +38,7 @@ export default function OrdersPage() {
   const [showMaterialSuggestion, setShowMaterialSuggestion] = useState(false);
   const [materialSuggestion, setMaterialSuggestion] = useState<any>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState('');
+  const [filterQueries, setFilterQueries] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (!permLoading && can('sales.orders', 'view')) {
@@ -348,120 +351,174 @@ export default function OrdersPage() {
     window.location.href = '/inventory?tab=import';
   };
 
-  if (permLoading || loading) return <div className="text-center py-8">Đang tải...</div>;
-
-  if (!can('sales.orders', 'view')) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-700 mb-2">Không có quyền truy cập</h2>
-        <p className="text-gray-500">Bạn không có quyền xem đơn hàng</p>
-      </div>
-    );
-  }
-
+  // Apply filters
   const filteredOrders = orders.filter(o => {
-    const matchSearch = o.orderCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       o.customerName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchStatus = filterStatus === 'ALL' || o.status === filterStatus;
+    // Search filter
+    const searchKey = 'search,orderCode,customerName';
+    const searchValue = filterQueries[searchKey] || '';
+    const matchSearch = !searchValue || 
+      o.orderCode.toLowerCase().includes(searchValue.toLowerCase()) ||
+      o.customerName.toLowerCase().includes(searchValue.toLowerCase());
+    
+    // Status filter
+    const statusValue = filterQueries['status'];
+    const matchStatus = !statusValue || o.status === statusValue;
+    
     return matchSearch && matchStatus;
   });
 
+  const handleExportExcel = () => {
+    alert('Chức năng xuất Excel đang được phát triển');
+  };
+
+  const handleImportExcel = () => {
+    alert('Chức năng nhập Excel đang được phát triển');
+  };
+
+  const handleResetAll = () => {
+    setFilterQueries({});
+    setSearchTerm('');
+    setFilterStatus('ALL');
+  };
+
   return (
-    <div className="flex gap-4">
-      <div className={`space-y-4 transition-all duration-300 ${showDetail ? 'w-1/2' : 'w-full'}`}>
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Quản lý đơn hàng</h1>
-          {can('sales.orders', 'create') && (
-            <button
-              onClick={handleCreateOrder}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              ➕ Tạo đơn hàng
-            </button>
-          )}
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="🔍 Tìm theo mã đơn, khách hàng..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 border rounded-lg"
-            />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border rounded-lg"
-            >
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="PENDING">Chờ xác nhận</option>
-              <option value="CONFIRMED">Đã xác nhận</option>
-              <option value="COMPLETED">Hoàn thành</option>
-              <option value="CANCELLED">Đã hủy</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          {filteredOrders.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <div className="text-6xl mb-2">📋</div>
-              <div>Chưa có đơn hàng</div>
+    <>
+      <WrapperContent<Order>
+        title="Quản lý đơn hàng"
+        isNotAccessible={!can('sales.orders', 'view')}
+        isLoading={permLoading || loading}
+        header={{
+          buttonEnds: can('sales.orders', 'create')
+            ? [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+                {
+                  type: 'primary',
+                  name: 'Thêm',
+                  onClick: handleCreateOrder,
+                  icon: <PlusOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Xuất Excel',
+                  onClick: handleExportExcel,
+                  icon: <DownloadOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Nhập Excel',
+                  onClick: handleImportExcel,
+                  icon: <UploadOutlined />,
+                },
+              ]
+            : [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+              ],
+          searchInput: {
+            placeholder: 'Tìm theo mã đơn, khách hàng...',
+            filterKeys: ['orderCode', 'customerName'],
+          },
+          filters: {
+            fields: [
+              {
+                type: 'select',
+                name: 'status',
+                label: 'Trạng thái',
+                options: [
+                  { label: 'Chờ xác nhận', value: 'PENDING' },
+                  { label: 'Đã xác nhận', value: 'CONFIRMED' },
+                  { label: 'Chờ nguyên liệu', value: 'WAITING_MATERIAL' },
+                  { label: 'Đang sản xuất', value: 'IN_PRODUCTION' },
+                  { label: 'Hoàn thành', value: 'COMPLETED' },
+                  { label: 'Đã hủy', value: 'CANCELLED' },
+                ],
+              },
+            ],
+            onApplyFilter: (arr) => {
+              const newQueries: Record<string, any> = { ...filterQueries };
+              arr.forEach(({ key, value }) => {
+                newQueries[key] = value;
+              });
+              setFilterQueries(newQueries);
+            },
+            onReset: () => {
+              setFilterQueries({});
+              setSearchTerm('');
+              setFilterStatus('ALL');
+            },
+            query: filterQueries,
+          },
+        }}
+      >
+        <div className="flex gap-4">
+          <div className={`space-y-4 transition-all duration-300 ${showDetail ? 'w-1/2' : 'w-full'}`}>
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              {filteredOrders.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <div className="text-6xl mb-2">📋</div>
+                  <div>Chưa có đơn hàng</div>
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left w-32">Mã đơn</th>
+                      <th className="px-4 py-3 text-left w-48">Khách hàng</th>
+                      <th className="px-4 py-3 text-left w-32">Ngày đặt</th>
+                      <th className="px-4 py-3 text-right w-36">Tổng tiền</th>
+                      <th className="px-4 py-3 text-left w-40">Trạng thái</th>
+                      <th className="px-4 py-3 text-right w-32">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredOrders.map((order) => (
+                      <tr 
+                        key={order.id}
+                        onClick={() => viewDetail(order.id)}
+                        className="hover:bg-gray-50 cursor-pointer"
+                      >
+                        <td className="px-4 py-3 font-mono">{order.orderCode}</td>
+                        <td className="px-4 py-3">{order.customerName}</td>
+                        <td className="px-4 py-3">{new Date(order.orderDate).toLocaleDateString('vi-VN')}</td>
+                        <td className="px-4 py-3 text-right font-semibold">{order.finalAmount.toLocaleString()} đ</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                            order.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
+                            order.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {getStatusText(order.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                          {order.status === 'PENDING' && can('sales.orders', 'edit') && (
+                            <button
+                              onClick={() => updateStatus(order.id, 'CONFIRMED')}
+                              className="text-blue-600 hover:text-blue-800 text-xs"
+                            >
+                              ✓ Xác nhận
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-2 text-left">Mã đơn</th>
-                  <th className="px-3 py-2 text-left">Khách hàng</th>
-                  <th className="px-3 py-2 text-left">Ngày đặt</th>
-                  <th className="px-3 py-2 text-right">Tổng tiền</th>
-                  <th className="px-3 py-2 text-left">Trạng thái</th>
-                  <th className="px-3 py-2 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredOrders.map((order) => (
-                  <tr 
-                    key={order.id}
-                    onClick={() => viewDetail(order.id)}
-                    className="hover:bg-gray-50 cursor-pointer"
-                  >
-                    <td className="px-3 py-2 font-mono">{order.orderCode}</td>
-                    <td className="px-3 py-2">{order.customerName}</td>
-                    <td className="px-3 py-2">{new Date(order.orderDate).toLocaleDateString('vi-VN')}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{order.finalAmount.toLocaleString()} đ</td>
-                    <td className="px-3 py-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                        order.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
-                        order.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                      {order.status === 'PENDING' && can('sales.orders', 'edit') && (
-                        <button
-                          onClick={() => updateStatus(order.id, 'CONFIRMED')}
-                          className="text-blue-600 hover:text-blue-800 text-xs"
-                        >
-                          ✓ Xác nhận
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {showDetail && selectedOrder && (
+          {showDetail && selectedOrder && (
         <div className="w-1/2 bg-white border-l shadow-xl overflow-y-auto fixed right-0 top-0 h-screen z-40">
           <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
             <h3 className="text-xl font-bold">Chi tiết đơn hàng</h3>
@@ -999,6 +1056,8 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
-    </div>
+        </div>
+      </WrapperContent>
+    </>
   );
 }

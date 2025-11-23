@@ -105,7 +105,12 @@ export const FilterList: React.FC<FilterListProps> = ({
     <div className=" w-72">
       <div className=" flex  justify-between  items-center">
         <h3 className=" font-medium  mb-0">Bộ lọc</h3>
-        <Button type="link" size="small" onClick={handleReset}>
+        <Button
+          type="link"
+          size="small"
+          onClick={handleReset}
+          className="text-blue-600 hover:text-blue-800 p-0 h-auto"
+        >
           Đặt lại
         </Button>
       </div>
@@ -115,16 +120,22 @@ export const FilterList: React.FC<FilterListProps> = ({
 
         <Divider className=" my-2" />
 
-        <Form.Item className=" flex  justify-end  mb-0  mt-2">
-          <Space>
-            <Button size="small" onClick={onCancel}>
-              Hủy
-            </Button>
-            <Button size="small" type="primary" htmlType="submit">
-              Áp dụng
-            </Button>
-          </Space>
-        </Form.Item>
+        <div className="flex justify-end gap-2 mt-2">
+          <Button
+            type="default"
+            size="small"
+            onClick={onCancel}
+          >
+            Hủy
+          </Button>
+          <Button
+            type="primary"
+            size="small"
+            htmlType="submit"
+          >
+            Áp dụng
+          </Button>
+        </div>
       </Form>
     </div>
   );
