@@ -14,6 +14,7 @@ import {
   Typography,
   Dropdown,
   Tag,
+  Tooltip,
   theme,
   Button,
 } from "antd";
@@ -197,11 +198,26 @@ export default function DashboardLayout({
 
   const antdMenuItems: MenuProps["items"] = menuItems.map((item, idx) => {
     // Use href path as the stable key for both root items and children
+    const ellipsisStyle: React.CSSProperties = {
+      display: "inline-block",
+      maxWidth: 140,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      verticalAlign: "middle",
+    };
+
     if (item.href) {
       return {
         key: item.href,
         icon: item.icon,
-        label: <Link href={item.href}>{item.title}</Link>,
+        label: (
+          <Tooltip title={item.title} placement="right">
+            <Link href={item.href}>
+              <span style={ellipsisStyle}>{item.title}</span>
+            </Link>
+          </Tooltip>
+        ),
       };
     }
 
@@ -209,26 +225,31 @@ export default function DashboardLayout({
     return {
       key: `group-${idx}`,
       icon: item.icon,
-      label: item.title,
+      label: <span style={ellipsisStyle}>{item.title}</span>,
       children: item.children?.map((child) => ({
         key: child.href,
         label: (
-          <Link href={child.href}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <span>{child.title}</span>
-              {child.warehouseType && (
-                <Tag color={child.warehouseType === "NVL" ? "purple" : "green"}>
-                  {child.warehouseType === "NVL" ? "NVL" : "TP"}
-                </Tag>
-              )}
-            </div>
-          </Link>
+          <Tooltip title={child.title} placement="right">
+            <Link href={child.href}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                }}
+              >
+                <span style={ellipsisStyle}>{child.title}</span>
+                {child.warehouseType && (
+                  <Tag
+                    color={child.warehouseType === "NVL" ? "purple" : "green"}
+                  >
+                    {child.warehouseType === "NVL" ? "NVL" : "TP"}
+                  </Tag>
+                )}
+              </div>
+            </Link>
+          </Tooltip>
         ),
       })),
     };
