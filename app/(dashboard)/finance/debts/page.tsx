@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
+import WrapperContent from '@/components/WrapperContent';
+import { PlusOutlined, DownloadOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
 import Modal from '@/components/Modal';
 import PartnerDebtSidePanel from '@/components/PartnerDebtSidePanel';
 
@@ -324,39 +326,150 @@ export default function DebtsPage() {
     return debts.filter(d => d.debtType === 'PAYABLE' && suppliers.find(s => s.id === supplierId && s.supplierName === d.supplierName));
   };
 
-  const totalReceivable = customerSummaries.reduce((sum, c) => sum + parseFloat(c.remainingAmount?.toString() || '0'), 0);
-  const totalPayable = supplierSummaries.reduce((sum, s) => sum + parseFloat(s.remainingAmount?.toString() || '0'), 0);
+  const [filterQueries, setFilterQueries] = useState<Record<string, any>>({});
+  const [searchTerm, setSearchTerm] = useState('');
 
-  if (loading) return <div>Đang tải...</div>;
+  const handleResetAll = () => {
+    setActiveTab('customers');
+    setFilterQueries({});
+    setSearchTerm('');
+  };
+
+  const handleExportExcel = () => {
+    alert('Chức năng xuất Excel đang được phát triển');
+  };
+
+  const handleImportExcel = () => {
+    alert('Chức năng nhập Excel đang được phát triển');
+  };
+
+  const filteredCustomerSummaries = customerSummaries.filter(c => {
+    const searchKey = 'search,customerCode,customerName,phone';
+    const searchValue = filterQueries[searchKey] || '';
+    const matchSearch = !searchValue || 
+      c.customerCode.toLowerCase().includes(searchValue.toLowerCase()) ||
+      c.customerName.toLowerCase().includes(searchValue.toLowerCase()) ||
+      c.phone?.includes(searchValue);
+    
+    const hasDebtValue = filterQueries['hasDebt'];
+    const matchDebt = hasDebtValue === undefined || 
+      (hasDebtValue === 'true' ? c.remainingAmount > 0 : c.remainingAmount === 0);
+    
+    return matchSearch && matchDebt;
+  });
+
+  const filteredSupplierSummaries = supplierSummaries.filter(s => {
+    const searchKey = 'search,supplierCode,supplierName,phone';
+    const searchValue = filterQueries[searchKey] || '';
+    const matchSearch = !searchValue || 
+      s.supplierCode.toLowerCase().includes(searchValue.toLowerCase()) ||
+      s.supplierName.toLowerCase().includes(searchValue.toLowerCase()) ||
+      s.phone?.includes(searchValue);
+    
+    const hasDebtValue = filterQueries['hasDebt'];
+    const matchDebt = hasDebtValue === undefined || 
+      (hasDebtValue === 'true' ? s.remainingAmount > 0 : s.remainingAmount === 0);
+    
+    return matchSearch && matchDebt;
+  });
+
+  const totalReceivable = filteredCustomerSummaries.reduce((sum, c) => sum + parseFloat(c.remainingAmount?.toString() || '0'), 0);
+  const totalPayable = filteredSupplierSummaries.reduce((sum, s) => sum + parseFloat(s.remainingAmount?.toString() || '0'), 0);
 
   return (
-    <div className="flex">
-      {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${showSidePanel ? 'mr-[600px]' : ''}`}>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Quản lý công nợ</h1>
-          {can('finance.debts', 'create') && (
-            <button
-              onClick={() => {
-                resetForm();
-                setShowModal(true);
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              + Thêm công nợ
-            </button>
-          )}
-        </div>
+    <>
+      <WrapperContent
+        title="Quản lý công nợ"
+        isNotAccessible={!can('finance.debts', 'view')}
+        isLoading={loading}
+        header={{
+          buttonEnds: can('finance.debts', 'create')
+            ? [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+                {
+                  type: 'primary',
+                  name: 'Thêm',
+                  onClick: () => {
+                    resetForm();
+                    setShowModal(true);
+                  },
+                  icon: <PlusOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Xuất Excel',
+                  onClick: handleExportExcel,
+                  icon: <DownloadOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Nhập Excel',
+                  onClick: handleImportExcel,
+                  icon: <UploadOutlined />,
+                },
+              ]
+            : [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+              ],
+          searchInput: {
+            placeholder: activeTab === 'customers' 
+              ? 'Tìm theo mã KH, tên, SĐT...' 
+              : 'Tìm theo mã NCC, tên, SĐT...',
+            filterKeys: activeTab === 'customers' 
+              ? ['customerCode', 'customerName', 'phone']
+              : ['supplierCode', 'supplierName', 'phone'],
+          },
+          filters: {
+            fields: [
+              {
+                type: 'select',
+                name: 'hasDebt',
+                label: 'Công nợ',
+                options: [
+                  { label: 'Có công nợ', value: 'true' },
+                  { label: 'Đã thanh toán', value: 'false' },
+                ],
+              },
+            ],
+            onApplyFilter: (arr) => {
+              const newQueries: Record<string, any> = { ...filterQueries };
+              arr.forEach(({ key, value }) => {
+                newQueries[key] = value;
+              });
+              setFilterQueries(newQueries);
+            },
+            onReset: () => {
+              setFilterQueries({});
+              setSearchTerm('');
+            },
+            query: filterQueries,
+          },
+        }}
+      >
+        <div className="flex">
+          {/* Main Content */}
+          <div className={`flex-1 transition-all duration-300 ${showSidePanel ? 'mr-[600px]' : ''}`}>
+            <div className="space-y-6">
 
-        {/* Summary */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+              {/* Summary */}
+              <div className="grid grid-cols-2 gap-4">
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
             <div className="text-sm text-green-600 mb-1">Tổng phải thu (Khách hàng)</div>
             <div className="text-2xl font-bold text-green-700">
               {totalReceivable.toLocaleString('vi-VN')} đ
             </div>
             <div className="text-xs text-green-600 mt-1">
-              {customerSummaries.length} khách hàng có đơn hàng
+              {filteredCustomerSummaries.length} khách hàng
             </div>
           </div>
           <div className="bg-red-50 p-4 rounded-lg border border-red-200">
@@ -365,13 +478,13 @@ export default function DebtsPage() {
               {totalPayable.toLocaleString('vi-VN')} đ
             </div>
             <div className="text-xs text-red-600 mt-1">
-              {supplierSummaries.length} nhà cung cấp có đơn mua
+              {filteredSupplierSummaries.length} nhà cung cấp
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-4 border-b">
+              {/* Tabs */}
+              <div className="border-b">
           <div className="flex gap-4">
             <button
               onClick={() => setActiveTab('customers')}
@@ -381,7 +494,7 @@ export default function DebtsPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Khách hàng ({customerSummaries.length})
+              Khách hàng ({filteredCustomerSummaries.length})
             </button>
             <button
               onClick={() => setActiveTab('suppliers')}
@@ -391,13 +504,13 @@ export default function DebtsPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Nhà cung cấp ({supplierSummaries.length})
+              Nhà cung cấp ({filteredSupplierSummaries.length})
             </button>
           </div>
         </div>
 
-        {/* Customer Summary Table */}
-        {activeTab === 'customers' && (
+              {/* Customer Summary Table */}
+              {activeTab === 'customers' && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <table className="min-w-full">
               <thead className="bg-gray-50">
@@ -413,14 +526,14 @@ export default function DebtsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {customerSummaries.length === 0 ? (
+                {filteredCustomerSummaries.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                       Không có khách hàng nào có đơn hàng
                     </td>
                   </tr>
                 ) : (
-                  customerSummaries.map((customer) => (
+                  filteredCustomerSummaries.map((customer) => (
                     <tr key={customer.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         {customer.customerCode}
@@ -463,8 +576,8 @@ export default function DebtsPage() {
           </div>
         )}
 
-        {/* Supplier Summary Table */}
-        {activeTab === 'suppliers' && (
+              {/* Supplier Summary Table */}
+              {activeTab === 'suppliers' && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <table className="min-w-full">
               <thead className="bg-gray-50">
@@ -480,14 +593,14 @@ export default function DebtsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {supplierSummaries.length === 0 ? (
+                {filteredSupplierSummaries.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                       Không có nhà cung cấp nào có đơn mua
                     </td>
                   </tr>
                 ) : (
-                  supplierSummaries.map((supplier) => (
+                  filteredSupplierSummaries.map((supplier) => (
                     <tr key={supplier.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         {supplier.supplierCode}
@@ -529,10 +642,10 @@ export default function DebtsPage() {
             </table>
           </div>
         )}
-      </div>
-      
+            </div>
+          </div>
 
-      {/* Side Panel - Partner Debt */}
+          {/* Side Panel - Partner Debt */}
       {showSidePanel && selectedPartner && (
         <PartnerDebtSidePanel
           partnerId={selectedPartner.id}
@@ -684,6 +797,8 @@ export default function DebtsPage() {
           </div>
         </form>
       </Modal>
-    </div>
+        </div>
+      </WrapperContent>
+    </>
   );
 }

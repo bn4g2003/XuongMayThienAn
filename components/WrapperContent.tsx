@@ -186,10 +186,12 @@ function WrapperContent<T extends object>({
                 onOpenChange={setIsOpenFilterModal}
               >
                 <Tooltip title="Bộ lọc">
-                  <Button
-                    type={hasActiveFilters ? "primary" : "default"}
-                    icon={<FilterOutlined />}
-                  />
+                  <span>
+                    <Button
+                      type={hasActiveFilters ? "primary" : "default"}
+                      icon={<FilterOutlined />}
+                    />
+                  </span>
                 </Tooltip>
               </Popover>
             </Form.Provider>
@@ -244,35 +246,41 @@ function WrapperContent<T extends object>({
               onOpenChange={setIsOpenColumnSettings}
             >
               <Tooltip title="Cài đặt cột">
-                <Button
-                  type={hasActiveColumnSettings ? "primary" : "default"}
-                  icon={<SettingOutlined />}
-                />
+                <span>
+                  <Button
+                    type={hasActiveColumnSettings ? "primary" : "default"}
+                    icon={<SettingOutlined />}
+                  />
+                </span>
               </Tooltip>
             </Popover>
           )}
           {hasFilters && header.filters?.onReset && (
             <Tooltip title="Đặt lại bộ lọc">
-              <Button
-                onClick={handleResetFilters}
-                danger
-                icon={<DeleteOutlined />}
-              />
+              <span>
+                <Button
+                  onClick={handleResetFilters}
+                  danger
+                  icon={<DeleteOutlined />}
+                />
+              </span>
             </Tooltip>
           )}
         </div>
         <div className="flex gap-3 items-center">
           {header.refetchDataWithKeys && (
             <Tooltip title="Tải lại dữ liệu">
-              <Button
-                type="default"
-                icon={<SyncOutlined spin={isLoading} />}
-                onClick={() => {
-                  if (header.refetchDataWithKeys) {
-                    queriesToInvalidate(header.refetchDataWithKeys);
-                  }
-                }}
-              />
+              <span>
+                <Button
+                  type="default"
+                  icon={<SyncOutlined spin={isLoading} />}
+                  onClick={() => {
+                    if (header.refetchDataWithKeys) {
+                      queriesToInvalidate(header.refetchDataWithKeys);
+                    }
+                  }}
+                />
+              </span>
             </Tooltip>
           )}
           {header.buttonEnds &&
@@ -284,14 +292,16 @@ function WrapperContent<T extends object>({
               })
               .map((buttonEnd, index) => (
                 <Tooltip key={index} title={buttonEnd.name}>
-                  <Button
-                    danger={buttonEnd.danger}
-                    type={buttonEnd.type}
-                    onClick={buttonEnd.onClick}
-                    icon={buttonEnd.icon}
-                  >
-                    {buttonEnd.name}
-                  </Button>
+                  <span>
+                    <Button
+                      danger={buttonEnd.danger}
+                      type={buttonEnd.type}
+                      onClick={buttonEnd.onClick}
+                      icon={buttonEnd.icon}
+                    >
+                      {buttonEnd.name}
+                    </Button>
+                  </span>
                 </Tooltip>
               ))}
         </div>

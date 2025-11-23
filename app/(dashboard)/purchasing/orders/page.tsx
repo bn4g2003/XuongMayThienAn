@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
+import WrapperContent from '@/components/WrapperContent';
+import { PlusOutlined, DownloadOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
 
 interface PurchaseOrder {
   id: number;
@@ -33,6 +35,7 @@ export default function PurchaseOrdersPage() {
   });
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [filterQueries, setFilterQueries] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (!permLoading && can('purchasing.orders', 'view')) {
@@ -241,107 +244,156 @@ export default function PurchaseOrdersPage() {
     }
   };
 
-  if (permLoading || loading) return <div className="text-center py-8">Đang tải...</div>;
+  const handleResetAll = () => {
+    setFilterQueries({});
+    setSearchTerm('');
+    setFilterStatus('ALL');
+  };
 
-  if (!can('purchasing.orders', 'view')) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-700 mb-2">Không có quyền truy cập</h2>
-        <p className="text-gray-500">Bạn không có quyền xem đơn đặt hàng</p>
-      </div>
-    );
-  }
+  const handleExportExcel = () => {
+    alert('Chức năng xuất Excel đang được phát triển');
+  };
+
+  const handleImportExcel = () => {
+    alert('Chức năng nhập Excel đang được phát triển');
+  };
 
   const filteredOrders = orders.filter(o => {
-    const matchSearch = o.poCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       o.supplierName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchStatus = filterStatus === 'ALL' || o.status === filterStatus;
+    const searchKey = 'search,poCode,supplierName';
+    const searchValue = filterQueries[searchKey] || '';
+    const matchSearch = !searchValue || 
+      o.poCode.toLowerCase().includes(searchValue.toLowerCase()) ||
+      o.supplierName.toLowerCase().includes(searchValue.toLowerCase());
+    
+    const statusValue = filterQueries['status'];
+    const matchStatus = !statusValue || o.status === statusValue;
+    
     return matchSearch && matchStatus;
   });
 
   return (
-    <div className="flex gap-4">
-      <div className={`space-y-4 transition-all duration-300 ${showDetail ? 'w-1/2' : 'w-full'}`}>
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Đơn đặt hàng</h1>
-          {can('purchasing.orders', 'create') && (
-            <button
-              onClick={handleCreateOrder}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              ➕ Tạo đơn đặt hàng
-            </button>
-          )}
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="🔍 Tìm theo mã đơn, nhà cung cấp..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 border rounded-lg"
-            />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border rounded-lg"
-            >
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="PENDING">Chờ xác nhận</option>
-              <option value="CONFIRMED">Đã xác nhận</option>
-              <option value="DELIVERED">Đã giao hàng</option>
-              <option value="CANCELLED">Đã hủy</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          {filteredOrders.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <div className="text-6xl mb-2">📦</div>
-              <div>Chưa có đơn đặt hàng</div>
+    <>
+      <WrapperContent<PurchaseOrder>
+        title="Đơn đặt hàng"
+        isNotAccessible={!can('purchasing.orders', 'view')}
+        isLoading={permLoading || loading}
+        header={{
+          buttonEnds: can('purchasing.orders', 'create')
+            ? [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+                {
+                  type: 'primary',
+                  name: 'Thêm',
+                  onClick: handleCreateOrder,
+                  icon: <PlusOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Xuất Excel',
+                  onClick: handleExportExcel,
+                  icon: <DownloadOutlined />,
+                },
+                {
+                  type: 'default',
+                  name: 'Nhập Excel',
+                  onClick: handleImportExcel,
+                  icon: <UploadOutlined />,
+                },
+              ]
+            : [
+                {
+                  type: 'default',
+                  name: 'Đặt lại',
+                  onClick: handleResetAll,
+                  icon: <ReloadOutlined />,
+                },
+              ],
+          searchInput: {
+            placeholder: 'Tìm theo mã đơn, nhà cung cấp...',
+            filterKeys: ['poCode', 'supplierName'],
+          },
+          filters: {
+            fields: [
+              {
+                type: 'select',
+                name: 'status',
+                label: 'Trạng thái',
+                options: [
+                  { label: 'Chờ xác nhận', value: 'PENDING' },
+                  { label: 'Đã xác nhận', value: 'CONFIRMED' },
+                  { label: 'Đã giao hàng', value: 'DELIVERED' },
+                  { label: 'Đã hủy', value: 'CANCELLED' },
+                ],
+              },
+            ],
+            onApplyFilter: (arr) => {
+              const newQueries: Record<string, any> = { ...filterQueries };
+              arr.forEach(({ key, value }) => {
+                newQueries[key] = value;
+              });
+              setFilterQueries(newQueries);
+            },
+            onReset: () => {
+              setFilterQueries({});
+              setSearchTerm('');
+              setFilterStatus('ALL');
+            },
+            query: filterQueries,
+          },
+        }}
+      >
+        <div className="flex gap-4">
+          <div className={`space-y-4 transition-all duration-300 ${showDetail ? 'w-1/2' : 'w-full'}`}>
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              {filteredOrders.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <div className="text-6xl mb-2">📦</div>
+                  <div>Chưa có đơn đặt hàng</div>
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left w-32">Mã đơn</th>
+                      <th className="px-4 py-3 text-left w-48">Nhà cung cấp</th>
+                      <th className="px-4 py-3 text-left w-32">Ngày đặt</th>
+                      <th className="px-4 py-3 text-right w-36">Tổng tiền</th>
+                      <th className="px-4 py-3 text-left w-40">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredOrders.map((order) => (
+                      <tr 
+                        key={order.id}
+                        onClick={() => viewDetail(order.id)}
+                        className="hover:bg-gray-50 cursor-pointer"
+                      >
+                        <td className="px-4 py-3 font-mono">{order.poCode}</td>
+                        <td className="px-4 py-3">{order.supplierName}</td>
+                        <td className="px-4 py-3">{new Date(order.orderDate).toLocaleDateString('vi-VN')}</td>
+                        <td className="px-4 py-3 text-right font-semibold">{order.totalAmount.toLocaleString()} đ</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                            order.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
+                            order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {order.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-2 text-left">Mã đơn</th>
-                  <th className="px-3 py-2 text-left">Nhà cung cấp</th>
-                  <th className="px-3 py-2 text-left">Ngày đặt</th>
-                  <th className="px-3 py-2 text-right">Tổng tiền</th>
-                  <th className="px-3 py-2 text-left">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredOrders.map((order) => (
-                  <tr 
-                    key={order.id}
-                    onClick={() => viewDetail(order.id)}
-                    className="hover:bg-gray-50 cursor-pointer"
-                  >
-                    <td className="px-3 py-2 font-mono">{order.poCode}</td>
-                    <td className="px-3 py-2">{order.supplierName}</td>
-                    <td className="px-3 py-2">{new Date(order.orderDate).toLocaleDateString('vi-VN')}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{order.totalAmount.toLocaleString()} đ</td>
-                    <td className="px-3 py-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                        order.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
-                        order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
+          </div>
 
       {showDetail && selectedOrder && (
         <div className="w-1/2 bg-white border-l shadow-xl overflow-y-auto fixed right-0 top-0 h-screen z-40">
@@ -673,6 +725,8 @@ export default function PurchaseOrdersPage() {
           </div>
         </div>
       )}
-    </div>
+        </div>
+      </WrapperContent>
+    </>
   );
 }
