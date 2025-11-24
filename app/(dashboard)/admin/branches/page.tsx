@@ -1,27 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { usePermissions } from "@/hooks/usePermissions";
-import useFilter from "@/hooks/useFilter";
-import { useBranches, BRANCH_KEYS } from "@/hooks/useCommonQuery";
-import CommonTable from "@/components/CommonTable";
-import WrapperContent from "@/components/WrapperContent";
-import type { TableColumnsType } from "antd";
-import { Button, Tag, Modal, Dropdown, App } from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  EyeOutlined,
-  MoreOutlined,
-} from "@ant-design/icons";
-import useColumn from "@/hooks/useColumn";
 import BranchDetailDrawer from "@/components/branches/BranchDetailDrawer";
 import BranchFormModal, {
   type BranchFormValues,
 } from "@/components/branches/BranchFormModal";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import CommonTable from "@/components/CommonTable";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import { BRANCH_KEYS, useBranches } from "@/hooks/useCommonQuery";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { Branch } from "@/services/commonService";
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  EyeOutlined,
+  MoreOutlined,
+  PlusOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { TableColumnsType } from "antd";
+import { App, Button, Dropdown, Tag } from "antd";
+import { useState } from "react";
 
 export default function BranchesPage() {
   const { can } = usePermissions();
@@ -198,6 +200,18 @@ export default function BranchesPage() {
                   onClick: handleCreate,
                   icon: <PlusOutlined />,
                 },
+                {
+                  type: "default",
+                  name: "Xuất Excel",
+                  onClick: () => {},
+                  icon: <DownloadOutlined />,
+                },
+                {
+                  type: "default",
+                  name: "Nhập Excel",
+                  onClick: () => {},
+                  icon: <UploadOutlined />,
+                },
               ]
             : undefined,
           searchInput: {
@@ -205,7 +219,17 @@ export default function BranchesPage() {
             filterKeys: ["branchCode", "branchName", "address", "phone"],
           },
           filters: {
-            fields: [],
+            fields: [
+              {
+                type: "select",
+                name: "isActive",
+                label: "Trạng thái",
+                options: [
+                  { label: "Hoạt động", value: true },
+                  { label: "Khóa", value: false },
+                ],
+              },
+            ],
             onApplyFilter: (arr) => updateQueries(arr),
             onReset: () => reset(),
             query,

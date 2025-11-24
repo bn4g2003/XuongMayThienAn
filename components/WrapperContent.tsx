@@ -3,6 +3,11 @@ import { FilterList } from "@/components/FilterList";
 import LoaderApp from "@/components/LoaderApp";
 import { IParams } from "@/hooks/useFilter";
 import { useSetTitlePage } from "@/hooks/useSetTitlePage";
+import {
+  BREAK_POINT_WIDTH,
+  BreakpointEnum,
+  useWindowBreakpoint,
+} from "@/hooks/useWindowBreakPoint";
 import { ColumnSetting, FilterField } from "@/types";
 import { queriesToInvalidate } from "@/utils/refetchData";
 import {
@@ -15,17 +20,18 @@ import {
 } from "@ant-design/icons";
 import {
   Button,
-  Popover,
-  Input,
   Checkbox,
   Divider,
   Empty,
   Form,
+  Input,
+  Modal,
+  Popover,
   Tooltip,
 } from "antd";
-import { useRouter } from "next/navigation";
-import React, { useState, useEffect } from "react";
 import debounce from "lodash/debounce";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 
 interface WrapperContentProps<T extends object> {
   title?: string;
@@ -49,7 +55,7 @@ interface WrapperContentProps<T extends object> {
       filterKeys: (keyof T)[];
     };
     filters?: {
-      fields: FilterField[];
+      fields?: FilterField[];
       query?: IParams;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onApplyFilter: (arr: { key: string; value: any }[]) => void;
@@ -79,6 +85,10 @@ function WrapperContent<T extends object>({
   useSetTitlePage(title || null);
   const [isOpenFilterModal, setIsOpenFilterModal] = useState(false);
   const [isOpenColumnSettings, setIsOpenColumnSettings] = useState(false);
+  const [isMobileOptionsOpen, setIsMobileOptionsOpen] = useState(false);
+  const breakpoint = useWindowBreakpoint();
+  const isMobileView =
+    BREAK_POINT_WIDTH[breakpoint] <= BREAK_POINT_WIDTH[BreakpointEnum.LG];
   const [searchTerm, setSearchTerm] = useState(() => {
     if (header.searchInput && header.filters && header.filters.query) {
       const keys = ["search", ...header.searchInput.filterKeys].join(",");
@@ -146,19 +156,257 @@ function WrapperContent<T extends object>({
   return (
     <div className={`space-y-10 ${className}`}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {header.buttonBackTo && (
-            <Button
-              type="default"
-              icon={<ArrowLeftOutlined />}
-              onClick={() => router.push(header.buttonBackTo!)}
-            >
-              Quay lại
-            </Button>
-          )}
+        {!isMobileView ? (
+          <>
+            <div className="flex items-center gap-3">
+              {header.buttonBackTo && (
+                <Button
+                  type="default"
+                  icon={<ArrowLeftOutlined />}
+                  onClick={() => router.push(header.buttonBackTo!)}
+                >
+                  Quay lại
+                </Button>
+              )}
+              {header.searchInput && (
+                <Input
+                  style={{ width: 256 }}
+                  value={searchTerm}
+                  placeholder={header.searchInput.placeholder}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  prefix={<SearchOutlined />}
+                  allowClear
+                />
+              )}
+              {header.filters && header.filters?.fields && (
+                <Form.Provider>
+                  <Popover
+                    trigger="click"
+                    placement="bottomLeft"
+                    content={
+                      <FilterList
+                        form={formFilter}
+                        onCancel={() => setIsOpenFilterModal(false)}
+                        fields={header.filters.fields}
+                        onApplyFilter={(arr) =>
+                          header.filters?.onApplyFilter(arr)
+                        }
+                        onReset={() =>
+                          header.filters?.onReset && header.filters.onReset()
+                        }
+                      />
+                    }
+                    open={isOpenFilterModal}
+                    onOpenChange={setIsOpenFilterModal}
+                  >
+                    <Tooltip title="Bộ lọc">
+                      <span>
+                        <Button
+                          type={hasActiveFilters ? "primary" : "default"}
+                          icon={<FilterOutlined />}
+                        />
+                      </span>
+                    </Tooltip>
+                  </Popover>
+                </Form.Provider>
+              )}
+
+              {header.columnSettings && (
+                <Popover
+                  trigger="click"
+                  placement="bottomLeft"
+                  content={
+                    <div>
+                      <div className=" flex  justify-between  items-center">
+                        <h3 className=" font-medium  mb-0">Cài đặt cột</h3>
+                        {header.columnSettings.onReset && (
+                          <Button
+                            type="link"
+                            size="small"
+                            onClick={() => {
+                              if (header.columnSettings?.onReset) {
+                                header.columnSettings.onReset();
+                              }
+                            }}
+                          >
+                            Đặt lại
+                          </Button>
+                        )}
+                      </div>
+                      <Divider className=" my-2" />
+
+                      <div className="grid grid-rows-5 grid-cols-3 gap-4">
+                        {header.columnSettings.columns.map((column) => (
+                          <Checkbox
+                            key={column.key}
+                            checked={column.visible}
+                            onChange={(e) => {
+                              const newColumns =
+                                header.columnSettings!.columns.map((col) =>
+                                  col.key === column.key
+                                    ? { ...col, visible: e.target.checked }
+                                    : col
+                                );
+                              header.columnSettings!.onChange(newColumns);
+                            }}
+                          >
+                            {column.title}
+                          </Checkbox>
+                        ))}
+                      </div>
+                    </div>
+                  }
+                  open={isOpenColumnSettings}
+                  onOpenChange={setIsOpenColumnSettings}
+                >
+                  <Tooltip title="Cài đặt cột">
+                    <span>
+                      <Button
+                        type={hasActiveColumnSettings ? "primary" : "default"}
+                        icon={<SettingOutlined />}
+                      />
+                    </span>
+                  </Tooltip>
+                </Popover>
+              )}
+              {hasFilters && header.filters?.onReset && (
+                <Tooltip title="Đặt lại bộ lọc">
+                  <span>
+                    <Button
+                      onClick={handleResetFilters}
+                      danger
+                      icon={<DeleteOutlined />}
+                    />
+                  </span>
+                </Tooltip>
+              )}
+            </div>
+            <div className="flex gap-3 items-center">
+              {header.refetchDataWithKeys && (
+                <Tooltip title="Tải lại dữ liệu">
+                  <span>
+                    <Button
+                      type="default"
+                      icon={<SyncOutlined spin={isLoading} />}
+                      onClick={() => {
+                        if (header.refetchDataWithKeys) {
+                          queriesToInvalidate(header.refetchDataWithKeys);
+                        }
+                      }}
+                    />
+                  </span>
+                </Tooltip>
+              )}
+              {header.buttonEnds &&
+                header.buttonEnds
+                  .sort((a, b) => {
+                    if (a.type === "primary" && b.type !== "primary") return 1;
+                    if (a.type !== "primary" && b.type === "primary") return -1;
+                    return 0;
+                  })
+                  .map((buttonEnd, index) => (
+                    <Tooltip key={index} title={buttonEnd.name}>
+                      <span>
+                        <Button
+                          loading={buttonEnd.isLoading}
+                          danger={buttonEnd.danger}
+                          type={buttonEnd.type}
+                          onClick={buttonEnd.onClick}
+                          icon={buttonEnd.icon}
+                        >
+                          {buttonEnd.name}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              {header.buttonBackTo && (
+                <Button
+                  type="default"
+                  icon={<ArrowLeftOutlined />}
+                  onClick={() => router.push(header.buttonBackTo!)}
+                />
+              )}
+            </div>
+            <div className="flex gap-2 items-center">
+              {header.refetchDataWithKeys && (
+                <Tooltip title="Tải lại dữ liệu">
+                  <span>
+                    <Button
+                      type="default"
+                      icon={<SyncOutlined spin={isLoading} />}
+                      onClick={() => {
+                        if (header.refetchDataWithKeys) {
+                          queriesToInvalidate(header.refetchDataWithKeys);
+                        }
+                      }}
+                    />
+                  </span>
+                </Tooltip>
+              )}
+
+              {hasFilters && header.filters?.onReset && (
+                <Tooltip title="Đặt lại bộ lọc">
+                  <span>
+                    <Button
+                      onClick={handleResetFilters}
+                      danger
+                      icon={<DeleteOutlined />}
+                    />
+                  </span>
+                </Tooltip>
+              )}
+
+              {header.buttonEnds &&
+                header.buttonEnds
+                  .sort((a, b) => {
+                    if (a.type === "primary" && b.type !== "primary") return 1;
+                    if (a.type !== "primary" && b.type === "primary") return -1;
+                    return 0;
+                  })
+                  .map((buttonEnd, index) => (
+                    <Tooltip key={index} title={buttonEnd.name}>
+                      <span>
+                        <Button
+                          loading={buttonEnd.isLoading}
+                          danger={buttonEnd.danger}
+                          type={buttonEnd.type}
+                          onClick={buttonEnd.onClick}
+                          icon={buttonEnd.icon}
+                        />
+                      </span>
+                    </Tooltip>
+                  ))}
+
+              <Button
+                type={
+                  hasActiveFilters || hasActiveColumnSettings
+                    ? "primary"
+                    : "default"
+                }
+                icon={<FilterOutlined />}
+                onClick={() => setIsMobileOptionsOpen(true)}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Mobile modal for filters / settings */}
+      <Modal
+        title="Tùy chọn"
+        open={isMobileOptionsOpen}
+        onCancel={() => setIsMobileOptionsOpen(false)}
+        footer={null}
+        destroyOnHidden
+      >
+        <div className="space-y-4">
           {header.searchInput && (
             <Input
-              style={{ width: 256 }}
               value={searchTerm}
               placeholder={header.searchInput.placeholder}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -166,147 +414,61 @@ function WrapperContent<T extends object>({
               allowClear
             />
           )}
-          {header.filters && (
-            <Form.Provider>
-              <Popover
-                trigger="click"
-                placement="bottomLeft"
-                content={
-                  <FilterList
-                    form={formFilter}
-                    onCancel={() => setIsOpenFilterModal(false)}
-                    fields={header.filters?.fields || []}
-                    onApplyFilter={(arr) => header.filters?.onApplyFilter(arr)}
-                    onReset={() =>
-                      header.filters?.onReset && header.filters.onReset()
-                    }
-                  />
-                }
-                open={isOpenFilterModal}
-                onOpenChange={setIsOpenFilterModal}
-              >
-                <Tooltip title="Bộ lọc">
-                  <span>
-                    <Button
-                      type={hasActiveFilters ? "primary" : "default"}
-                      icon={<FilterOutlined />}
-                    />
-                  </span>
-                </Tooltip>
-              </Popover>
-            </Form.Provider>
+
+          {header.filters && header.filters.fields && (
+            <FilterList
+              form={formFilter}
+              onCancel={() => setIsMobileOptionsOpen(false)}
+              fields={header.filters?.fields || []}
+              onApplyFilter={(arr) => header.filters?.onApplyFilter(arr)}
+              onReset={() =>
+                header.filters?.onReset && header.filters.onReset()
+              }
+            />
           )}
+          <Divider className=" my-2" />
 
           {header.columnSettings && (
-            <Popover
-              trigger="click"
-              placement="bottomLeft"
-              content={
-                <div>
-                  <div className=" flex  justify-between  items-center">
-                    <h3 className=" font-medium  mb-0">Cài đặt cột</h3>
-                    {header.columnSettings.onReset && (
-                      <Button
-                        type="link"
-                        size="small"
-                        onClick={() => {
-                          if (header.columnSettings?.onReset) {
-                            header.columnSettings.onReset();
-                          }
-                        }}
-                      >
-                        Đặt lại
-                      </Button>
-                    )}
-                  </div>
-                  <Divider className=" my-2" />
-
-                  <div className="grid grid-rows-5 grid-cols-3 gap-4">
-                    {header.columnSettings.columns.map((column) => (
-                      <Checkbox
-                        key={column.key}
-                        checked={column.visible}
-                        onChange={(e) => {
-                          const newColumns = header.columnSettings!.columns.map(
-                            (col) =>
-                              col.key === column.key
-                                ? { ...col, visible: e.target.checked }
-                                : col
-                          );
-                          header.columnSettings!.onChange(newColumns);
-                        }}
-                      >
-                        {column.title}
-                      </Checkbox>
-                    ))}
-                  </div>
-                </div>
-              }
-              open={isOpenColumnSettings}
-              onOpenChange={setIsOpenColumnSettings}
-            >
-              <Tooltip title="Cài đặt cột">
-                <span>
+            <div>
+              <div className=" flex  justify-between  items-center">
+                <h3 className=" font-medium  mb-0">Cài đặt cột</h3>
+                {header.columnSettings.onReset && (
                   <Button
-                    type={hasActiveColumnSettings ? "primary" : "default"}
-                    icon={<SettingOutlined />}
-                  />
-                </span>
-              </Tooltip>
-            </Popover>
-          )}
-          {hasFilters && header.filters?.onReset && (
-            <Tooltip title="Đặt lại bộ lọc">
-              <span>
-                <Button
-                  onClick={handleResetFilters}
-                  danger
-                  icon={<DeleteOutlined />}
-                />
-              </span>
-            </Tooltip>
-          )}
-        </div>
-        <div className="flex gap-3 items-center">
-          {header.refetchDataWithKeys && (
-            <Tooltip title="Tải lại dữ liệu">
-              <span>
-                <Button
-                  type="default"
-                  icon={<SyncOutlined spin={isLoading} />}
-                  onClick={() => {
-                    if (header.refetchDataWithKeys) {
-                      queriesToInvalidate(header.refetchDataWithKeys);
+                    type="link"
+                    size="small"
+                    onClick={() =>
+                      header.columnSettings?.onReset &&
+                      header.columnSettings.onReset()
                     }
-                  }}
-                />
-              </span>
-            </Tooltip>
+                  >
+                    Đặt lại
+                  </Button>
+                )}
+              </div>
+              <Divider className=" my-2" />
+              <div className="grid grid-rows-5 grid-cols-2 justify-between gap-4">
+                {header.columnSettings.columns.map((column) => (
+                  <Checkbox
+                    key={column.key}
+                    checked={column.visible}
+                    onChange={(e) => {
+                      const newColumns = header.columnSettings!.columns.map(
+                        (col) =>
+                          col.key === column.key
+                            ? { ...col, visible: e.target.checked }
+                            : col
+                      );
+                      header.columnSettings!.onChange(newColumns);
+                    }}
+                  >
+                    {column.title}
+                  </Checkbox>
+                ))}
+              </div>
+            </div>
           )}
-          {header.buttonEnds &&
-            header.buttonEnds
-              .sort((a, b) => {
-                if (a.type === "primary" && b.type !== "primary") return 1;
-                if (a.type !== "primary" && b.type === "primary") return -1;
-                return 0;
-              })
-              .map((buttonEnd, index) => (
-                <Tooltip key={index} title={buttonEnd.name}>
-                  <span>
-                    <Button
-                      loading={buttonEnd.isLoading}
-                      danger={buttonEnd.danger}
-                      type={buttonEnd.type}
-                      onClick={buttonEnd.onClick}
-                      icon={buttonEnd.icon}
-                    >
-                      {buttonEnd.name}
-                    </Button>
-                  </span>
-                </Tooltip>
-              ))}
         </div>
-      </div>
+      </Modal>
       {isNotAccessible && !isLoading && <AccessDenied />}
       {isEmpty && !isNotAccessible && !isLoading && (
         <div className="flex min-h-[400px] items-center justify-center">

@@ -5,6 +5,11 @@ import { ConfigProvider, theme as antdTheme, App as AntdApp } from "antd";
 import { themeColors, ThemeName, getThemeTokens } from "@/configs/theme";
 import LoaderApp from "@/components/LoaderApp";
 import vi from "antd/locale/vi_VN";
+import {
+  useWindowBreakpoint,
+  BreakpointEnum,
+  BREAK_POINT_WIDTH,
+} from "@/hooks/useWindowBreakPoint";
 
 // Context để các component con có thể gọi hàm chuyển theme
 type ThemeContextType = {
@@ -88,6 +93,9 @@ export const AppThemeProvider = ({
 
   // 2. Cấu hình cho Ant Design
   const baseThemeTokens = getThemeTokens(themeName, mode);
+  const breakpoint = useWindowBreakpoint();
+  const isMobile =
+    BREAK_POINT_WIDTH[breakpoint] <= BREAK_POINT_WIDTH[BreakpointEnum.MD];
 
   return (
     <ThemeContext.Provider value={{ mode, themeName, setMode, setThemeName }}>
@@ -99,6 +107,7 @@ export const AppThemeProvider = ({
         input={{
           autoComplete: "off",
         }}
+        componentSize={isMobile ? "middle" : "large"}
         theme={{
           algorithm:
             mode === "dark"

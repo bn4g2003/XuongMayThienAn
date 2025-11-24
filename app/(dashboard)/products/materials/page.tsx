@@ -1,32 +1,35 @@
 "use client";
 
-import React, { useState } from "react";
+import CommonTable from "@/components/CommonTable";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import { useBranches } from "@/hooks/useCommonQuery";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
-  Button,
-  Drawer,
-  Modal,
-  Form,
-  Input,
-  Select,
-  Dropdown,
-  Descriptions,
-  Tag,
-  App,
-} from "antd";
-import type { TableColumnsType } from "antd";
-import {
-  PlusOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   EditOutlined,
   EyeOutlined,
   MoreOutlined,
+  PlusOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
-import WrapperContent from "@/components/WrapperContent";
-import CommonTable from "@/components/CommonTable";
-import useFilter from "@/hooks/useFilter";
-import useColumn from "@/hooks/useColumn";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TableColumnsType } from "antd";
+import {
+  App,
+  Button,
+  Descriptions,
+  Drawer,
+  Dropdown,
+  Form,
+  Input,
+  Modal,
+  Select,
+  Tag,
+} from "antd";
+import { useState } from "react";
 
 interface Material {
   id: number;
@@ -87,6 +90,7 @@ export default function MaterialsPage() {
   const { can } = usePermissions();
   const { reset, applyFilter, updateQueries, query } = useFilter();
   const queryClient = useQueryClient();
+  const { data: branches = [] } = useBranches();
 
   const {
     data: materials = [],
@@ -201,7 +205,7 @@ export default function MaterialsPage() {
       title: "Tên nguyên vật liệu",
       dataIndex: "materialName",
       key: "materialName",
-      width: 240,
+      width: 180,
     },
     {
       title: "Đơn vị",
@@ -282,6 +286,18 @@ export default function MaterialsPage() {
                   onClick: handleCreate,
                   icon: <PlusOutlined />,
                 },
+                {
+                  type: "default",
+                  name: "Xuất Excel",
+                  onClick: () => {},
+                  icon: <DownloadOutlined />,
+                },
+                {
+                  type: "default",
+                  name: "Nhập Excel",
+                  onClick: () => {},
+                  icon: <UploadOutlined />,
+                },
               ]
             : undefined,
           searchInput: {
@@ -289,7 +305,23 @@ export default function MaterialsPage() {
             filterKeys: ["materialName", "materialCode", "description", "unit"],
           },
           filters: {
-            fields: [],
+            fields: [
+              {
+                type: "select",
+                label: "Đơn vị",
+                name: "unit",
+                options: UNIT_OPTIONS.flatMap((group) => group.options),
+              },
+              {
+                type: "select" as const,
+                name: "branchId",
+                label: "Chi nhánh",
+                options: branches.map((branch) => ({
+                  label: branch.branchName,
+                  value: branch.id.toString(),
+                })),
+              },
+            ],
             onApplyFilter: (arr) => updateQueries(arr),
             onReset: () => reset(),
             query,

@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "Quản Lý Xuống May Thiên An",
+  title: "Quản Lý Xưởng May Thiên An",
   description:
     "Hệ thống quản lý sản xuất và tồn kho dành cho các xưởng may công nghiệp.",
   icons: {

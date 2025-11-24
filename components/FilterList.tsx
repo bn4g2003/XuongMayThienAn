@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { FilterField } from "@/types";
-import { Button, DatePicker, Divider, Form, Select, Input } from "antd";
+import { Button, DatePicker, Divider, Form, Select, Input, Empty } from "antd";
 import { FormInstance } from "antd/lib";
 
 interface FilterListProps {
@@ -102,13 +102,16 @@ export const FilterList: React.FC<FilterListProps> = ({
     }
   };
 
+  if (fields.length === 0) {
+    return <Empty description="Không có bộ lọc nào" />;
+  }
+
   return (
-    <div className=" w-72">
+    <div className="min-w-72">
       <div className=" flex  justify-between  items-center">
         <h3 className=" font-medium  mb-0">Bộ lọc</h3>
         <Button
           type="link"
-          size="small"
           onClick={handleReset}
           className="text-blue-600 hover:text-blue-800 p-0 h-auto"
         >
@@ -122,10 +125,10 @@ export const FilterList: React.FC<FilterListProps> = ({
         <Divider className=" my-2" />
 
         <div className="flex justify-end gap-2 mt-2">
-          <Button type="default" size="small" onClick={onCancel}>
+          <Button type="default" onClick={onCancel}>
             Hủy
           </Button>
-          <Button type="primary" size="small" htmlType="submit">
+          <Button type="primary" htmlType="submit">
             Áp dụng
           </Button>
         </div>

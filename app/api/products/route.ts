@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { requirePermission } from '@/lib/permissions';
 import { ApiResponse } from '@/types';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,11 +24,11 @@ export async function GET(request: NextRequest) {
     let countQuery: string;
     let queryParams: any[];
     let countParams: any[];
-    
+
     if (currentUser.roleCode !== 'ADMIN' && currentUser.branchId) {
       // User không phải ADMIN chỉ xem products trong chi nhánh của mình
       productsQuery = `
-        SELECT 
+        SELECT
           p.id, p.product_code as "productCode", p.product_name as "productName",
           p.category_id as "categoryId", p.description, p.unit, p.cost_price as "costPrice",
           p.is_active as "isActive", p.branch_id as "branchId",
@@ -42,13 +42,13 @@ export async function GET(request: NextRequest) {
         LIMIT $2 OFFSET $3
       `;
       queryParams = [currentUser.branchId, limit, offset];
-      
+
       countQuery = `SELECT COUNT(*) FROM products p WHERE p.branch_id = $1`;
       countParams = [currentUser.branchId];
     } else {
       // ADMIN xem tất cả products
       productsQuery = `
-        SELECT 
+        SELECT
           p.id, p.product_code as "productCode", p.product_name as "productName",
           p.category_id as "categoryId", p.description, p.unit, p.cost_price as "costPrice",
           p.is_active as "isActive", p.branch_id as "branchId",
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         LIMIT $1 OFFSET $2
       `;
       queryParams = [limit, offset];
-      
+
       countQuery = `SELECT COUNT(*) FROM products p`;
       countParams = [];
     }

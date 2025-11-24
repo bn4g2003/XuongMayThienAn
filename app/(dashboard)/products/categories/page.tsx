@@ -1,47 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
+import CategoryForm from "@/components/categories/CategoryForm";
+import CommonTable from "@/components/CommonTable";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import { Category, CategoryFormValues } from "@/types/category";
 import {
-  Button,
-  Drawer,
-  Form,
-  Input,
-  Select,
-  Dropdown,
-  Descriptions,
-  App,
-  Modal,
-} from "antd";
-import type { TableColumnsType } from "antd";
-import {
-  PlusOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   EditOutlined,
   EyeOutlined,
   MoreOutlined,
+  PlusOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
-import WrapperContent from "@/components/WrapperContent";
-import CommonTable from "@/components/CommonTable";
-import useFilter from "@/hooks/useFilter";
-import useColumn from "@/hooks/useColumn";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
-interface Category {
-  id: number;
-  categoryCode: string;
-  categoryName: string;
-  parentId?: number;
-  parentName?: string;
-  description?: string;
-}
-
-type CategoryFormValues = {
-  categoryCode: string;
-  categoryName: string;
-  parentId?: number | string;
-  description?: string;
-};
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TableColumnsType } from "antd";
+import { App, Button, Descriptions, Drawer, Dropdown, Modal } from "antd";
+import { useState } from "react";
 
 export default function CategoriesPage() {
   const { can } = usePermissions();
@@ -238,6 +216,18 @@ export default function CategoriesPage() {
                   onClick: handleCreate,
                   icon: <PlusOutlined />,
                 },
+                {
+                  type: "default",
+                  name: "Xuất Excel",
+                  onClick: () => {},
+                  icon: <DownloadOutlined />,
+                },
+                {
+                  type: "default",
+                  name: "Nhập Excel",
+                  onClick: () => {},
+                  icon: <UploadOutlined />,
+                },
               ]
             : undefined,
           searchInput: {
@@ -245,7 +235,6 @@ export default function CategoriesPage() {
             filterKeys: ["categoryName", "categoryCode", "description"],
           },
           filters: {
-            fields: [],
             onApplyFilter: (arr) => updateQueries(arr),
             onReset: () => reset(),
             query,
@@ -318,69 +307,5 @@ export default function CategoriesPage() {
         />
       </Modal>
     </>
-  );
-}
-
-function CategoryForm({
-  mode,
-  initialValues,
-  categories,
-  excludeId,
-  onCancel,
-  onSubmit,
-  loading,
-}: {
-  mode: "create" | "edit";
-  initialValues?: Partial<CategoryFormValues>;
-  categories: Category[];
-  excludeId?: number;
-  onCancel: () => void;
-  onSubmit: (v: CategoryFormValues) => void;
-  loading?: boolean;
-}) {
-  const [form] = Form.useForm<CategoryFormValues>();
-
-  return (
-    <Form
-      form={form}
-      layout="vertical"
-      initialValues={initialValues}
-      onFinish={(v) => onSubmit(v as CategoryFormValues)}
-    >
-      <Form.Item
-        name="categoryCode"
-        label="Mã danh mục"
-        rules={[{ required: true, message: "Vui lòng nhập mã danh mục" }]}
-      >
-        <Input disabled={mode === "edit"} />
-      </Form.Item>
-      <Form.Item
-        name="categoryName"
-        label="Tên danh mục"
-        rules={[{ required: true, message: "Vui lòng nhập tên danh mục" }]}
-      >
-        <Input />
-      </Form.Item>
-      <Form.Item name="parentId" label="Danh mục cha">
-        <Select allowClear placeholder="-- Không có --">
-          {categories
-            .filter((c) => c.id !== excludeId)
-            .map((cat) => (
-              <Select.Option key={cat.id} value={cat.id}>
-                {cat.categoryName}
-              </Select.Option>
-            ))}
-        </Select>
-      </Form.Item>
-      <Form.Item name="description" label="Mô tả">
-        <Input.TextArea rows={3} />
-      </Form.Item>
-      <div className="flex gap-2 justify-end">
-        <Button onClick={onCancel}>Hủy</Button>
-        <Button type="primary" htmlType="submit" loading={loading}>
-          Lưu
-        </Button>
-      </div>
-    </Form>
   );
 }

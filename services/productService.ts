@@ -11,6 +11,7 @@ export interface Product {
   costPrice?: number;
   branchName: string;
   isActive: boolean;
+  branchId: number;
 }
 
 export interface BOMItem {

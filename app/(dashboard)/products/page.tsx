@@ -1,43 +1,47 @@
 "use client";
 
-import { useState } from "react";
-import { usePermissions } from "@/hooks/usePermissions";
-import useFilter from "@/hooks/useFilter";
-import {
-  useProducts,
-  useDeleteProduct,
-  useCreateProduct,
-  useUpdateProduct,
-  PRODUCT_KEYS,
-} from "@/hooks/useProductQuery";
-import { useCategories } from "@/hooks/useProductQuery";
 import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
 import ProductDetailDrawer from "@/components/products/ProductDetailDrawer";
 import ProductFormModal, {
   type ProductFormValues,
 } from "@/components/products/ProductFormModal";
+import { useBranches } from "@/hooks/useCommonQuery";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import {
+  PRODUCT_KEYS,
+  useCategories,
+  useCreateProduct,
+  useDeleteProduct,
+  useProducts,
+  useUpdateProduct,
+} from "@/hooks/useProductQuery";
 import type {
   CreateProductDto,
+  Product,
   UpdateProductDto,
 } from "@/services/productService";
-import { Button, Tag, Modal, Dropdown, App } from "antd";
 import {
-  PlusOutlined,
-  EditOutlined,
+  CheckCircleOutlined,
   DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
   EyeOutlined,
   MoreOutlined,
-  CheckCircleOutlined,
+  PlusOutlined,
   StopOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
-import type { Product } from "@/services/productService";
+import { App, Button, Dropdown, Tag } from "antd";
+import { useState } from "react";
 
 export default function ProductsPage() {
   // router not used since we open modals/drawers
-  const { can } = usePermissions();
-  const { updateQuery, reset, applyFilter, updateQueries } = useFilter();
+  const { can, isAdmin } = usePermissions();
+  const { reset, query, applyFilter, updateQueries } = useFilter();
+  const { data: branches = [] } = useBranches();
 
   const { data: products = [], isLoading, isFetching } = useProducts();
   const { data: categories = [] } = useCategories();
@@ -96,15 +100,22 @@ export default function ProductsPage() {
 
   const columns: TableColumnsType<Product> = [
     {
-      title: "Mã sản phẩm",
+      title: "Mã",
       dataIndex: "productCode",
       key: "productCode",
-      width: 120,
+      width: 100,
     },
     {
       title: "Tên sản phẩm",
       dataIndex: "productName",
       key: "productName",
+      width: 160,
+      fixed: "left",
+    },
+    {
+      title: "Chi nhánh",
+      dataIndex: "branchName",
+      key: "branchName",
       width: 200,
     },
     {
@@ -194,6 +205,7 @@ export default function ProductsPage() {
         isLoading={isLoading || isFetching}
         header={{
           refetchDataWithKeys: PRODUCT_KEYS.all,
+
           buttonEnds: can("products.products", "create")
             ? [
                 {
@@ -201,6 +213,18 @@ export default function ProductsPage() {
                   name: "Thêm",
                   onClick: handleCreate,
                   icon: <PlusOutlined />,
+                },
+                {
+                  type: "default",
+                  name: "Xuất Excel",
+                  onClick: () => {},
+                  icon: <DownloadOutlined />,
+                },
+                {
+                  type: "default",
+                  name: "Nhập Excel",
+                  onClick: () => {},
+                  icon: <UploadOutlined />,
                 },
               ]
             : undefined,
@@ -212,10 +236,25 @@ export default function ProductsPage() {
               "categoryName",
               "description",
               "costPrice",
+              "unit",
+              "branchName",
             ],
           },
           filters: {
             fields: [
+              ...(isAdmin
+                ? [
+                    {
+                      type: "select" as const,
+                      name: "branchId",
+                      label: "Chi nhánh",
+                      options: branches.map((branch) => ({
+                        label: branch.branchName,
+                        value: branch.id.toString(),
+                      })),
+                    },
+                  ]
+                : []),
               {
                 type: "select",
                 name: "categoryId",
@@ -241,6 +280,7 @@ export default function ProductsPage() {
             onReset: () => {
               reset();
             },
+            query,
           },
         }}
       >

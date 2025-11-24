@@ -1,56 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import CommonTable from "@/components/CommonTable";
+import WarehouseForm from "@/components/WarehouseForm";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import { useBranches } from "@/hooks/useCommonQuery";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import { WarehouseType } from "@/types/enum";
 import {
-  Button,
-  Drawer,
-  Modal,
-  Form,
-  Input,
-  Select,
-  Tag,
-  Dropdown,
-  Descriptions,
-  Switch,
-  App,
-} from "antd";
-import type { TableColumnsType } from "antd";
+  Warehouse,
+  WarehouseFormValues,
+  WarehouseOptions,
+} from "@/types/warehouse";
 import {
-  PlusOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   EditOutlined,
   EyeOutlined,
   MoreOutlined,
-  DownloadOutlined,
+  PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
-import WrapperContent from "@/components/WrapperContent";
-import CommonTable from "@/components/CommonTable";
-import useFilter from "@/hooks/useFilter";
-import useColumn from "@/hooks/useColumn";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useBranches } from "@/hooks/useCommonQuery";
-
-interface Warehouse {
-  id: number;
-  warehouseCode: string;
-  warehouseName: string;
-  branchId: number;
-  branchName: string;
-  address?: string;
-  warehouseType: "NVL" | "THANH_PHAM";
-  isActive: boolean;
-}
-
-type WarehouseFormValues = {
-  warehouseCode: string;
-  warehouseName: string;
-  branchId: number | string;
-  address?: string;
-  warehouseType: "NVL" | "THANH_PHAM";
-  isActive?: boolean;
-};
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TableColumnsType } from "antd";
+import { App, Button, Descriptions, Drawer, Dropdown, Modal, Tag } from "antd";
+import { useState } from "react";
 
 export default function WarehousesPage() {
   const { can } = usePermissions();
@@ -282,6 +257,7 @@ export default function WarehousesPage() {
               "warehouseCode",
               "branchName",
               "address",
+              "warehouseType",
             ],
           },
           filters: {
@@ -294,6 +270,12 @@ export default function WarehousesPage() {
                   { label: "Hoạt động", value: true },
                   { label: "Khóa", value: false },
                 ],
+              },
+              {
+                type: "select",
+                name: "warehouseType",
+                label: "Loại kho",
+                options: WarehouseOptions,
               },
               {
                 type: "select",
@@ -375,8 +357,7 @@ export default function WarehousesPage() {
                   isActive: selected.isActive,
                 }
               : {
-                  warehouseType:
-                    "THANH_PHAM" as WarehouseFormValues["warehouseType"],
+                  warehouseType: WarehouseType.THANH_PHAM,
                   isActive: true,
                 }
           }
@@ -387,76 +368,5 @@ export default function WarehousesPage() {
         />
       </Modal>
     </>
-  );
-}
-
-function WarehouseForm({
-  initialValues,
-  branches,
-  onCancel,
-  onSubmit,
-  loading,
-}: {
-  initialValues?: Partial<WarehouseFormValues>;
-  branches: { id: number; branchName: string }[];
-  onCancel: () => void;
-  onSubmit: (v: WarehouseFormValues) => void;
-  loading?: boolean;
-}) {
-  const [form] = Form.useForm<WarehouseFormValues>();
-
-  return (
-    <Form
-      form={form}
-      layout="vertical"
-      initialValues={initialValues}
-      onFinish={(v) => onSubmit(v as WarehouseFormValues)}
-    >
-      <Form.Item
-        name="warehouseCode"
-        label="Mã kho"
-        rules={[{ required: true }]}
-      >
-        <Input />
-      </Form.Item>
-      <Form.Item
-        name="warehouseName"
-        label="Tên kho"
-        rules={[{ required: true }]}
-      >
-        <Input />
-      </Form.Item>
-      <Form.Item
-        name="warehouseType"
-        label="Loại kho"
-        rules={[{ required: true }]}
-      >
-        <Select>
-          <Select.Option value="THANH_PHAM">✨ Kho thành phẩm</Select.Option>
-          <Select.Option value="NVL">📦 Kho nguyên vật liệu</Select.Option>
-        </Select>
-      </Form.Item>
-      <Form.Item name="branchId" label="Chi nhánh" rules={[{ required: true }]}>
-        <Select>
-          {branches.map((b) => (
-            <Select.Option key={b.id} value={b.id}>
-              {b.branchName}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
-      <Form.Item name="address" label="Địa chỉ">
-        <Input.TextArea rows={2} />
-      </Form.Item>
-      <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">
-        <Switch checkedChildren="Hoạt động" unCheckedChildren="Khóa" />
-      </Form.Item>
-      <div className="flex gap-2 justify-end">
-        <Button onClick={onCancel}>Hủy</Button>
-        <Button type="primary" htmlType="submit" loading={loading}>
-          Lưu
-        </Button>
-      </div>
-    </Form>
   );
 }

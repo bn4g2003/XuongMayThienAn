@@ -49,6 +49,9 @@ const CommonTable = <T extends object>({
         return 0;
       };
     }
+    if (col.width === undefined) {
+      col.width = 100;
+    }
   });
 
   useEffect(() => {

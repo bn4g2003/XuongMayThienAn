@@ -16,6 +16,7 @@ import {
   Tooltip,
   theme,
   Button,
+  Drawer,
 } from "antd";
 import type { MenuProps } from "antd";
 import {
@@ -382,29 +383,67 @@ export default function DashboardLayout({
   }
   return (
     <Layout style={{ minHeight: "100vh" }}>
-      <Sider
-        trigger={null}
-        collapsible
-        collapsed={isMobile || !sidebarOpen}
-        width={240}
-        style={{
-          overflow: "auto",
-          height: "100vh",
-          position: "fixed",
-          left: 0,
-          top: 0,
-          bottom: 0,
-        }}
-      >
-        <div
+      {!isMobile && (
+        <Sider
+          trigger={null}
+          collapsible
+          collapsed={!isMobile && !sidebarOpen}
+          width={240}
           style={{
-            height: 64,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            overflow: "auto",
+            height: "100vh",
+            position: "fixed",
+            left: 0,
+            top: 0,
+            bottom: 0,
           }}
         >
-          {!isMobile && sidebarOpen ? (
+          {!isMobile && (
+            <>
+              <div
+                style={{
+                  height: 64,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {!isMobile && sidebarOpen ? (
+                  <Text
+                    style={{
+                      color: token.colorPrimary,
+                      fontSize: 18,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    POS System
+                  </Text>
+                ) : (
+                  <span
+                    style={{ fontSize: 24 }}
+                    className="text-primary font-bold"
+                  >
+                    P
+                  </span>
+                )}
+              </div>
+
+              <Menu
+                mode="inline"
+                selectedKeys={getSelectedKey()}
+                defaultOpenKeys={getOpenKeys()}
+                items={antdMenuItems}
+                onClick={() => {
+                  /* no-op on desktop */
+                }}
+              />
+            </>
+          )}
+        </Sider>
+      )}
+      {isMobile && (
+        <Drawer
+          title={
             <Text
               style={{
                 color: token.colorPrimary,
@@ -414,36 +453,36 @@ export default function DashboardLayout({
             >
               POS System
             </Text>
-          ) : (
-            <span style={{ fontSize: 24 }} className="text-primary font-bold">
-              P
-            </span>
-          )}
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            height: "calc(100% - 64px)",
-            justifyContent: "space-between",
-          }}
+          }
+          placement="left"
+          onClose={() => setSidebarOpen(false)}
+          open={isMobile && sidebarOpen}
+          closable={true}
+          size={240}
         >
-          <div>
-            <Menu
-              mode="inline"
-              selectedKeys={getSelectedKey()}
-              defaultOpenKeys={getOpenKeys()}
-              items={antdMenuItems}
-            />
-          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              justifyContent: "space-between",
+            }}
+          >
+            <div>
+              <Menu
+                mode="inline"
+                selectedKeys={getSelectedKey()}
+                defaultOpenKeys={getOpenKeys()}
+                items={antdMenuItems}
+                onClick={() => setSidebarOpen(false)}
+              />
+            </div>
 
-          {isMobile && (
             <div
               style={{
+                padding: 12,
                 display: "flex",
                 justifyContent: "center",
-                padding: "12px 0 20px 0",
               }}
             >
               <Dropdown
@@ -463,24 +502,37 @@ export default function DashboardLayout({
                     ...userMenuItems,
                   ],
                 }}
-                placement="topRight"
+                placement="topLeft"
               >
-                <Avatar
-                  icon={<UserOutlined />}
+                <div
                   style={{
-                    marginRight: 8,
-                    backgroundColor: token.colorPrimary,
+                    display: "flex",
+                    alignItems: "center",
+                    cursor: "pointer",
                   }}
-                />
+                >
+                  <Avatar
+                    icon={<UserOutlined />}
+                    style={{
+                      marginRight: 8,
+                      backgroundColor: token.colorPrimary,
+                    }}
+                  />
+                  <div className="flex flex-col">
+                    <Text strong>{user?.fullName}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {user?.roleCode}
+                    </Text>
+                  </div>
+                </div>
               </Dropdown>
             </div>
-          )}
-        </div>
-      </Sider>
-
+          </div>
+        </Drawer>
+      )}
       <Layout
         style={{
-          marginLeft: !isMobile && sidebarOpen ? 240 : 80,
+          marginLeft: !isMobile && sidebarOpen ? 240 : isMobile ? 0 : 80,
           transition: "all 0.2s",
         }}
       >
@@ -498,15 +550,11 @@ export default function DashboardLayout({
           }}
         >
           <div className="flex gap-3 items-center">
-            {!isMobile && (
-              <Button
-                type="text"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                icon={
-                  sidebarOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />
-                }
-              />
-            )}
+            <Button
+              type="text"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              icon={sidebarOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+            />
 
             <Breadcrumb items={getBreadcrumbItems()} />
             {titlePage && (
