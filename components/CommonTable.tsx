@@ -1,6 +1,7 @@
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { TableColumnsType } from "antd";
 import { Pagination, Space, Table } from "antd";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ICommonTableProps<T> {
   dataSource?: T[];
@@ -20,22 +21,35 @@ const CommonTable = <T extends object>({
   const [page, setPage] = useState(1);
   const pagingRef = useRef<HTMLDivElement>(null);
   const [limit, setLimit] = useState(10);
+  const isMobile = useIsMobile();
 
   const handlePageChange = (page: number) => {
     setPage(page);
   };
-  const columnsTable = useMemo(() => {
-    const hasNo = columns.some((col) => col.key === "stt");
-    if (rank && !hasNo) {
-      columns.unshift({
-        title: "#",
-        key: "stt",
-        width: 50,
-        render: (_, __, index) => <div>{index + 1 + (page - 1) * limit}</div>,
-      });
+  const hasNo = columns.some((col) => col.key === "stt");
+  if (rank && !hasNo && !isMobile) {
+    columns.unshift({
+      title: "#",
+      key: "stt",
+      width: 50,
+      render: (_, __, index) => <div>{index + 1 + (page - 1) * limit}</div>,
+    });
+  }
+  columns.forEach((col) => {
+    if (!col.sorter && "dataIndex" in col && col.dataIndex) {
+      col.sorter = (a: T, b: T) => {
+        const aValue = a[col.dataIndex as keyof T];
+        const bValue = b[col.dataIndex as keyof T];
+        if (typeof aValue === "number" && typeof bValue === "number") {
+          return aValue - bValue;
+        }
+        if (typeof aValue === "string" && typeof bValue === "string") {
+          return aValue.localeCompare(bValue);
+        }
+        return 0;
+      };
     }
-    return columns;
-  }, [rank, page, columns, limit]);
+  });
 
   useEffect(() => {
     const handleScroll = () => {
@@ -64,7 +78,7 @@ const CommonTable = <T extends object>({
         rowKey="id"
         bordered={true}
         loading={loading}
-        columns={columnsTable}
+        columns={columns}
         dataSource={dataSource}
         pagination={false}
         scroll={{

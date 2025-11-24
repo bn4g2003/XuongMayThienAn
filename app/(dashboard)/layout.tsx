@@ -13,7 +13,6 @@ import {
   Avatar,
   Typography,
   Dropdown,
-  Tag,
   Tooltip,
   theme,
   Button,
@@ -34,6 +33,8 @@ import LoaderApp from "@/components/LoaderApp";
 import { allMenuItems } from "@/configs/menu";
 import ItemColorTheme from "@/components/ItemColorTheme";
 import { useSiteTitleStore } from "@/stores/setSiteTitle";
+import { queryClient } from "@/providers/ReactQueryProvider";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -66,9 +67,11 @@ export default function DashboardLayout({
   const { mode, themeName, setMode, setThemeName } = useTheme();
   const { token } = theme.useToken();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
+    queryClient.resetQueries();
     router.push("/login");
   };
 
@@ -83,6 +86,7 @@ export default function DashboardLayout({
     retry: false,
     staleTime: 0,
   });
+  const loading = meLoading || permLoading;
 
   // If not authenticated, redirect to login
   useEffect(() => {
@@ -91,12 +95,7 @@ export default function DashboardLayout({
     }
   }, [meData, router]);
 
-  // derive user from meData (no local state)
   const user: User | null = meData?.data?.user || null;
-
-  // Fetch warehouses using TanStack Query; enabled only when user exists
-
-  const loading = meLoading || permLoading;
 
   const getBreadcrumbTitle = (path: string) => {
     const breadcrumbMap: Record<string, string> = {
@@ -136,21 +135,6 @@ export default function DashboardLayout({
 
     return path.split("/").pop() || "Trang";
   };
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <LoaderApp />
-      </div>
-    );
-  }
 
   const menuItems = allMenuItems
     .map((item) => {
@@ -382,12 +366,26 @@ export default function DashboardLayout({
     },
   ];
 
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <LoaderApp />
+      </div>
+    );
+  }
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <Sider
         trigger={null}
         collapsible
-        collapsed={!sidebarOpen}
+        collapsed={isMobile || !sidebarOpen}
         width={240}
         style={{
           overflow: "auto",
@@ -406,7 +404,7 @@ export default function DashboardLayout({
             justifyContent: "center",
           }}
         >
-          {sidebarOpen ? (
+          {!isMobile && sidebarOpen ? (
             <Text
               style={{
                 color: token.colorPrimary,
@@ -423,16 +421,68 @@ export default function DashboardLayout({
           )}
         </div>
 
-        <Menu
-          mode="inline"
-          selectedKeys={getSelectedKey()}
-          defaultOpenKeys={getOpenKeys()}
-          items={antdMenuItems}
-        />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            height: "calc(100% - 64px)",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <Menu
+              mode="inline"
+              selectedKeys={getSelectedKey()}
+              defaultOpenKeys={getOpenKeys()}
+              items={antdMenuItems}
+            />
+          </div>
+
+          {isMobile && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                padding: "12px 0 20px 0",
+              }}
+            >
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: "user-info",
+                      label: (
+                        <div className="flex flex-col items-center p-2">
+                          <Text strong>{user?.fullName}</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {user?.roleCode}
+                          </Text>
+                        </div>
+                      ),
+                    },
+                    ...userMenuItems,
+                  ],
+                }}
+                placement="topRight"
+              >
+                <Avatar
+                  icon={<UserOutlined />}
+                  style={{
+                    marginRight: 8,
+                    backgroundColor: token.colorPrimary,
+                  }}
+                />
+              </Dropdown>
+            </div>
+          )}
+        </div>
       </Sider>
 
       <Layout
-        style={{ marginLeft: sidebarOpen ? 240 : 80, transition: "all 0.2s" }}
+        style={{
+          marginLeft: !isMobile && sidebarOpen ? 240 : 80,
+          transition: "all 0.2s",
+        }}
       >
         <Header
           style={{
@@ -448,11 +498,16 @@ export default function DashboardLayout({
           }}
         >
           <div className="flex gap-3 items-center">
-            <Button
-              type="text"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              icon={sidebarOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
-            />
+            {!isMobile && (
+              <Button
+                type="text"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                icon={
+                  sidebarOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />
+                }
+              />
+            )}
+
             <Breadcrumb items={getBreadcrumbItems()} />
             {titlePage && (
               <>
@@ -462,29 +517,31 @@ export default function DashboardLayout({
             )}
           </div>
 
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                cursor: "pointer",
-              }}
-            >
-              <Avatar
-                icon={<UserOutlined />}
+          {!isMobile && (
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+              <div
                 style={{
-                  marginRight: 8,
-                  backgroundColor: token.colorPrimary,
+                  display: "flex",
+                  alignItems: "center",
+                  cursor: "pointer",
                 }}
-              />
-              <div className="flex flex-col">
-                <Text strong>{user?.fullName}</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {user?.roleCode}
-                </Text>
+              >
+                <Avatar
+                  icon={<UserOutlined />}
+                  style={{
+                    marginRight: 8,
+                    backgroundColor: token.colorPrimary,
+                  }}
+                />
+                <div className="flex flex-col">
+                  <Text strong>{user?.fullName}</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {user?.roleCode}
+                  </Text>
+                </div>
               </div>
-            </div>
-          </Dropdown>
+            </Dropdown>
+          )}
         </Header>
 
         <Content

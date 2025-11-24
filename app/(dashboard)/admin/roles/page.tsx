@@ -10,6 +10,7 @@ import {
   Dropdown,
   Descriptions,
   App,
+  Tooltip,
 } from "antd";
 import type { TableColumnsType } from "antd";
 import {
@@ -18,6 +19,8 @@ import {
   EditOutlined,
   EyeOutlined,
   MoreOutlined,
+  DownloadOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import WrapperContent from "@/components/WrapperContent";
 import CommonTable from "@/components/CommonTable";
@@ -163,6 +166,12 @@ export default function RolesPage() {
       title: "Mô tả",
       dataIndex: "description",
       key: "description",
+      width: 220,
+      render: (value: string) => (
+        <Tooltip title={value || "-"}>
+          <span className="truncate block max-w-[200px]">{value || "-"}</span>
+        </Tooltip>
+      ),
     },
     {
       title: "Số người dùng",
@@ -230,6 +239,19 @@ export default function RolesPage() {
                   onClick: handleCreate,
                   icon: <PlusOutlined />,
                 },
+                {
+                  type: "default",
+                  name: "Xuất Excel",
+                  onClick: () => {},
+                  icon: <DownloadOutlined />,
+                  isLoading: true,
+                },
+                {
+                  type: "default",
+                  name: "Nhập Excel",
+                  onClick: () => {},
+                  icon: <UploadOutlined />,
+                },
               ]
             : undefined,
           searchInput: {
@@ -288,7 +310,7 @@ export default function RolesPage() {
         onCancel={() => setModalOpen(false)}
         footer={null}
         key={selected?.id || "create"}
-        destroyOnClose
+        destroyOnHidden
       >
         <RoleForm
           initialValues={

@@ -62,6 +62,7 @@ export const FilterList: React.FC<FilterListProps> = ({
             className=" mb-4"
           >
             <Select
+              mode={"multiple"}
               options={field.options || []}
               placeholder={field.placeholder || `Chọn ${field.label}`}
               allowClear

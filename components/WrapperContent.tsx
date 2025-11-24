@@ -24,7 +24,7 @@ import {
   Tooltip,
 } from "antd";
 import { useRouter } from "next/navigation";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import debounce from "lodash/debounce";
 
 interface WrapperContentProps<T extends object> {
@@ -38,6 +38,7 @@ interface WrapperContentProps<T extends object> {
     refetchDataWithKeys?: string[] | readonly string[];
     buttonEnds?: {
       danger?: boolean;
+      isLoading?: boolean;
       type?: "link" | "default" | "text" | "primary" | "dashed" | undefined;
       onClick?: () => void;
       name: string;
@@ -88,14 +89,6 @@ function WrapperContent<T extends object>({
     return "";
   });
 
-  const searchKey = useMemo(() => {
-    if (header.searchInput && header.filters && header.filters.query) {
-      const keys = ["search", ...header.searchInput.filterKeys].join(",");
-      return keys;
-    }
-    return "search";
-  }, [header.searchInput, header.filters]);
-
   const hasActiveFilters = Boolean(
     header.filters &&
       Object.entries(header.filters.query || {}).some(([key, value]) => {
@@ -129,6 +122,14 @@ function WrapperContent<T extends object>({
   useEffect(() => {
     if (!header.filters || typeof header.filters.onApplyFilter !== "function")
       return;
+    const getSearchKey = () => {
+      if (header.searchInput && header.filters && header.filters.query) {
+        const keys = ["search", ...header.searchInput.filterKeys].join(",");
+        return keys;
+      }
+      return "search";
+    };
+    const searchKey = getSearchKey();
 
     const debounced = debounce((value: string) => {
       header.filters!.onApplyFilter([{ key: searchKey, value: value }]);
@@ -140,7 +141,7 @@ function WrapperContent<T extends object>({
       debounced.cancel();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, header.filters]);
+  }, [searchTerm, String(header.filters)]);
 
   return (
     <div className={`space-y-10 ${className}`}>
@@ -293,6 +294,7 @@ function WrapperContent<T extends object>({
                 <Tooltip key={index} title={buttonEnd.name}>
                   <span>
                     <Button
+                      loading={buttonEnd.isLoading}
                       danger={buttonEnd.danger}
                       type={buttonEnd.type}
                       onClick={buttonEnd.onClick}

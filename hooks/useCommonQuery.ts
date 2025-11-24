@@ -16,7 +16,6 @@ export function useRoles() {
   return useQuery({
     queryKey: ROLE_KEYS.lists(),
     queryFn: roleService.getAll,
-    staleTime: 5 * 60 * 1000, // 5 minutes - roles ít thay đổi
   });
 }
 
@@ -25,6 +24,5 @@ export function useBranches() {
   return useQuery({
     queryKey: BRANCH_KEYS.lists(),
     queryFn: branchService.getAll,
-    staleTime: 5 * 60 * 1000, // 5 minutes - branches ít thay đổi
   });
 }

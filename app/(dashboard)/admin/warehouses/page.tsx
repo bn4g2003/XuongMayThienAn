@@ -21,6 +21,8 @@ import {
   EditOutlined,
   EyeOutlined,
   MoreOutlined,
+  DownloadOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import WrapperContent from "@/components/WrapperContent";
 import CommonTable from "@/components/CommonTable";
@@ -259,6 +261,18 @@ export default function WarehousesPage() {
                   onClick: handleCreate,
                   icon: <PlusOutlined />,
                 },
+                {
+                  type: "default",
+                  name: "Xuất Excel",
+                  onClick: () => {},
+                  icon: <DownloadOutlined />,
+                },
+                {
+                  type: "default",
+                  name: "Nhập Excel",
+                  onClick: () => {},
+                  icon: <UploadOutlined />,
+                },
               ]
             : undefined,
           searchInput: {
@@ -271,7 +285,26 @@ export default function WarehousesPage() {
             ],
           },
           filters: {
-            fields: [],
+            fields: [
+              {
+                type: "select",
+                name: "isActive",
+                label: "Trạng thái",
+                options: [
+                  { label: "Hoạt động", value: true },
+                  { label: "Khóa", value: false },
+                ],
+              },
+              {
+                type: "select",
+                name: "branchId",
+                label: "Chi nhánh",
+                options: branches.map((b) => ({
+                  label: b.branchName,
+                  value: b.id,
+                })),
+              },
+            ],
             onApplyFilter: (arr) => updateQueries(arr),
             onReset: () => reset(),
             query,

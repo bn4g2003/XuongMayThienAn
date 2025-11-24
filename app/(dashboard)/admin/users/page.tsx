@@ -12,7 +12,7 @@ import {
 } from "@/hooks/useUserQuery";
 import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
-import { Button, Tag, Modal, App } from "antd";
+import { Button, Tag, App } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
