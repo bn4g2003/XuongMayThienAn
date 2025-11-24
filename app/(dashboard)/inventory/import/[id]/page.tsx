@@ -1,80 +1,223 @@
 "use client";
 
-import React, { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { usePermissions } from "@/hooks/usePermissions";
-import WrapperContent from "@/components/WrapperContent";
 import CommonTable from "@/components/CommonTable";
-import useFilter from "@/hooks/useFilter";
+import ImportForm from "@/components/inventory/ImportForm";
+import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
-import { Button, Tag, Segmented, Spin } from "antd";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
+import { App, Button, Descriptions, Drawer, Modal, Tag, message } from "antd";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 
-type BalanceItem = {
-  warehouseId: number;
-  warehouseName: string;
-  itemCode: string;
-  itemName: string;
-  itemType: "NVL" | "THANH_PHAM";
-  quantity: number;
-  unit: string;
+type ImportTransaction = {
+  id: number;
+  transactionCode: string;
+  toWarehouseId: number;
+  toWarehouseName: string;
+  status: "PENDING" | "APPROVED" | "COMPLETED";
+  totalAmount: number;
+  notes?: string;
+  createdBy: number;
+  createdByName: string;
+  createdAt: string;
+  approvedBy?: number;
+  approvedByName?: string;
+  approvedAt?: string;
 };
 
-export default function PageClient() {
+export default function ImportWarehousePage() {
   const params = useParams() as { id?: string };
   const router = useRouter();
   const warehouseId = params?.id;
   const { can } = usePermissions();
   const { reset, applyFilter, updateQueries, query } = useFilter();
+  const queryClient = useQueryClient();
+  const { modal } = App.useApp();
 
-  const [view, setView] = useState<"detail" | "summary">("detail");
+  const {
+    data: imports = [],
+    isLoading,
+    isFetching,
+  } = useQuery<ImportTransaction[]>({
+    queryKey: ["inventory", "import", warehouseId],
+    enabled: !!warehouseId,
+    queryFn: async () => {
+      const res = await fetch(`/api/inventory/import?warehouseId=${warehouseId}`);
+      const body = await res.json();
+      return body.success ? body.data : [];
+    },
+  });
 
-  const columnsAll: TableColumnsType<BalanceItem> = [
-    { title: "Mã", dataIndex: "itemCode", key: "itemCode", width: 140 },
-    { title: "Tên", dataIndex: "itemName", key: "itemName", width: 300 },
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/inventory/import/${id}`, {
+        method: "DELETE",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory", "import", warehouseId] });
+    },
+  });
+
+  const handleDelete = (id: number) => {
+    modal.confirm({
+      title: "Xác nhận xóa",
+      content: "Bạn có chắc muốn xóa phiếu nhập này?",
+      okText: "Xóa",
+      cancelText: "Hủy",
+      okButtonProps: { danger: true },
+      onOk: () => deleteMutation.mutate(id),
+    });
+  };
+
+  const columnsAll: TableColumnsType<ImportTransaction> = [
     {
-      title: "Loại",
-      dataIndex: "itemType",
-      key: "itemType",
-      width: 120,
-      render: (t: string) => (
-        <Tag color={t === "NVL" ? "purple" : "green"}>
-          {t === "NVL" ? "NVL" : "TP"}
-        </Tag>
-      ),
+      title: "Mã phiếu",
+      dataIndex: "transactionCode",
+      key: "transactionCode",
+      width: 140,
     },
     {
-      title: "Số lượng",
-      dataIndex: "quantity",
-      key: "quantity",
+      title: "Kho nhập",
+      dataIndex: "toWarehouseName",
+      key: "toWarehouseName",
+      width: 200,
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      width: 140,
+      render: (status: string) => {
+        const colors = {
+          PENDING: "orange",
+          APPROVED: "blue",
+          COMPLETED: "green",
+        };
+        const labels = {
+          PENDING: "Chờ duyệt",
+          APPROVED: "Đã duyệt",
+          COMPLETED: "Hoàn thành",
+        };
+        return <Tag color={colors[status as keyof typeof colors]}>{labels[status as keyof typeof labels]}</Tag>;
+      },
+    },
+    {
+      title: "Tổng tiền",
+      dataIndex: "totalAmount",
+      key: "totalAmount",
       width: 140,
       align: "right",
-      render: (q: number) => q?.toLocaleString() || "0",
+      render: (val: number) => val?.toLocaleString() || "0",
     },
-    { title: "Đơn vị", dataIndex: "unit", key: "unit", width: 120 },
+    {
+      title: "Người tạo",
+      dataIndex: "createdByName",
+      key: "createdByName",
+      width: 160,
+    },
+    {
+      title: "Ngày tạo",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      width: 160,
+      render: (val: string) => new Date(val).toLocaleString("vi-VN"),
+    },
+    {
+      title: "Thao tác",
+      key: "action",
+      width: 200,
+      fixed: "right",
+      render: (_: unknown, record: ImportTransaction) => (
+        <div className="flex gap-2">
+          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleView(record)}>
+            Xem
+          </Button>
+          {record.status === "PENDING" && can("inventory.import", "edit") && (
+            <Button type="link" size="small" onClick={() => handleApprove(record.id)}>
+              Duyệt
+            </Button>
+          )}
+          <Button
+            type="link"
+            size="small"
+            onClick={() => window.open(`/api/inventory/import/${record.id}/pdf`, "_blank")}
+          >
+            In
+          </Button>
+        </div>
+      ),
+    },
   ];
 
-  const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
-    useColumn({ defaultColumns: columnsAll });
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<ImportTransaction | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  const { data: balanceData = { details: [], summary: [] }, isLoading } =
-    useQuery({
-      queryKey: ["inventory", "balance", warehouseId],
-      enabled: !!warehouseId,
-      queryFn: async () => {
-        const res = await fetch(
-          `/api/inventory/balance${
-            warehouseId ? `?warehouseId=${warehouseId}` : ""
-          }`
-        );
-        const body = await res.json();
-        return body.success ? body.data : { details: [], summary: [] };
-      },
-      staleTime: 60 * 1000,
+  type TransactionDetail = {
+    id: number;
+    itemCode: string;
+    itemName: string;
+    quantity: number;
+    unit: string;
+    unitPrice?: number;
+    totalAmount?: number;
+    notes?: string;
+  };
+
+  const { data: transactionDetails = [] } = useQuery<TransactionDetail[]>({
+    queryKey: ["inventory", "import", "details", selectedTransaction?.id],
+    enabled: !!selectedTransaction?.id,
+    queryFn: async () => {
+      const res = await fetch(`/api/inventory/import/${selectedTransaction?.id}`);
+      const body = await res.json();
+      return body.success ? body.data?.details || [] : [];
+    },
+  });
+
+  const handleView = (record: ImportTransaction) => {
+    setSelectedTransaction(record);
+    setDrawerOpen(true);
+  };
+
+  const approveMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/inventory/import/${id}/approve`, {
+        method: "POST",
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        message.success("Duyệt phiếu thành công");
+        queryClient.invalidateQueries({ queryKey: ["inventory", "import", warehouseId] });
+        setDrawerOpen(false);
+      } else {
+        message.error(data.error || "Có lỗi xảy ra");
+      }
+    },
+  });
+
+  const handleApprove = (id: number) => {
+    modal.confirm({
+      title: "Xác nhận duyệt phiếu",
+      content: "Sau khi duyệt, tồn kho sẽ được cập nhật. Bạn có chắc chắn?",
+      okText: "Duyệt",
+      cancelText: "Hủy",
+      onOk: () => approveMutation.mutate(id),
     });
+  };
 
-  if (!can("inventory.balance", "view")) {
+  const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } = useColumn({ defaultColumns: columnsAll });
+
+  const filtered = applyFilter<ImportTransaction>(imports);
+
+  if (!can("inventory.import", "view")) {
     return <div className="text-center py-12">🔒 Không có quyền truy cập</div>;
   }
 
@@ -82,33 +225,44 @@ export default function PageClient() {
     return (
       <div className="p-6">
         <h3>Không tìm thấy warehouseId trong route.</h3>
-        <Button onClick={() => router.push("/inventory")}>Quay lại</Button>
+        <Button onClick={() => router.push("/inventory/import")}>Quay lại</Button>
       </div>
     );
   }
 
-  const details: BalanceItem[] = balanceData.details || [];
-  type SummaryItem = {
-    itemCode: string;
-    itemName: string;
-    itemType: "NVL" | "THANH_PHAM";
-    totalQuantity: number;
-    unit: string;
-  };
-  const summary: SummaryItem[] = (balanceData.summary as SummaryItem[]) || [];
-
-  const filteredDetails = applyFilter<BalanceItem>(details);
-
   return (
-    <WrapperContent<BalanceItem>
-      isLoading={isLoading}
-      header={{
+    <>
+      <WrapperContent<ImportTransaction>
+        isLoading={isLoading}
+        header={{
+        refetchDataWithKeys: ["inventory", "import", warehouseId],
+        buttonEnds: can("inventory.import", "create")
+          ? [
+              {
+                type: "primary",
+                name: "Tạo phiếu nhập",
+                onClick: () => setCreateModalOpen(true),
+                icon: <PlusOutlined />,
+              },
+            ]
+          : undefined,
         searchInput: {
-          placeholder: "Tìm kiếm kho",
-          filterKeys: ["itemName", "itemCode"],
+          placeholder: "Tìm kiếm phiếu nhập",
+          filterKeys: ["transactionCode", "toWarehouseName", "createdByName"],
         },
         filters: {
-          fields: [],
+          fields: [
+            {
+              type: "select",
+              name: "status",
+              label: "Trạng thái",
+              options: [
+                { label: "Chờ duyệt", value: "PENDING" },
+                { label: "Đã duyệt", value: "APPROVED" },
+                { label: "Hoàn thành", value: "COMPLETED" },
+              ],
+            },
+          ],
           onApplyFilter: (arr) => updateQueries(arr),
           onReset: () => reset(),
           query,
@@ -118,77 +272,130 @@ export default function PageClient() {
           onChange: (c) => updateColumns(c),
           onReset: () => resetColumns(),
         },
-        buttonEnds: [
-          {
-            name: "",
-            icon: (
-              <Segmented
-                value={view}
-                onChange={(v) => setView(v as "detail" | "summary")}
-                options={[
-                  { label: "Chi tiết", value: "detail" },
-                  { label: "Tổng hợp", value: "summary" },
-                ]}
-              />
-            ),
-            type: "text",
-            onClick: () => {},
-          },
-        ],
       }}
     >
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <Spin />
-        </div>
-      ) : view === "detail" ? (
         <CommonTable
-          loading={isLoading}
           columns={getVisibleColumns()}
-          dataSource={filteredDetails}
+          dataSource={filtered}
+          loading={isLoading || isFetching || deleteMutation.isPending}
           paging
           rank
         />
-      ) : (
-        <table className="w-full bg-white rounded-lg">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Mã
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Tên
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Loại
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                Tổng tồn
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Đơn vị
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {summary.map((s, idx) => (
-              <tr key={idx} className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-mono">{s.itemCode}</td>
-                <td className="px-6 py-4 text-sm font-medium">{s.itemName}</td>
-                <td className="px-6 py-4">
-                  <Tag color={s.itemType === "NVL" ? "purple" : "green"}>
-                    {s.itemType === "NVL" ? "NVL" : "Thành phẩm"}
-                  </Tag>
-                </td>
-                <td className="px-6 py-4 text-sm text-right font-bold">
-                  {(s.totalQuantity || 0).toLocaleString()}
-                </td>
-                <td className="px-6 py-4 text-sm">{s.unit}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </WrapperContent>
+      </WrapperContent>
+
+      <Drawer
+        title="Chi tiết phiếu nhập kho"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        size="large"
+      >
+        {selectedTransaction && (
+          <div className="space-y-6">
+            <Descriptions bordered column={2} size="small">
+              <Descriptions.Item label="Mã phiếu" span={2}>
+                {selectedTransaction.transactionCode}
+              </Descriptions.Item>
+              <Descriptions.Item label="Kho nhập">
+                {selectedTransaction.toWarehouseName}
+              </Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">
+                <Tag color={
+                  selectedTransaction.status === "PENDING" ? "orange" :
+                  selectedTransaction.status === "APPROVED" ? "blue" : "green"
+                }>
+                  {selectedTransaction.status === "PENDING" ? "Chờ duyệt" :
+                   selectedTransaction.status === "APPROVED" ? "Đã duyệt" : "Hoàn thành"}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Người tạo">
+                {selectedTransaction.createdByName}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày tạo">
+                {new Date(selectedTransaction.createdAt).toLocaleString("vi-VN")}
+              </Descriptions.Item>
+              {selectedTransaction.approvedByName && (
+                <>
+                  <Descriptions.Item label="Người duyệt">
+                    {selectedTransaction.approvedByName}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Ngày duyệt">
+                    {selectedTransaction.approvedAt ? new Date(selectedTransaction.approvedAt).toLocaleString("vi-VN") : "-"}
+                  </Descriptions.Item>
+                </>
+              )}
+              <Descriptions.Item label="Ghi chú" span={2}>
+                {selectedTransaction.notes || "-"}
+              </Descriptions.Item>
+            </Descriptions>
+
+            {selectedTransaction.status === "PENDING" && can("inventory.import", "edit") && (
+              <div className="flex justify-end mt-4">
+                <Button
+                  type="primary"
+                  onClick={() => handleApprove(selectedTransaction.id)}
+                  loading={approveMutation.isPending}
+                >
+                  Duyệt phiếu
+                </Button>
+              </div>
+            )}
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Chi tiết hàng hóa</h3>
+              <table className="w-full border">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left border">Mã</th>
+                    <th className="px-4 py-2 text-left border">Tên</th>
+                    <th className="px-4 py-2 text-right border">Số lượng</th>
+                    <th className="px-4 py-2 text-left border">ĐVT</th>
+                    <th className="px-4 py-2 text-right border">Đơn giá</th>
+                    <th className="px-4 py-2 text-right border">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactionDetails.map((detail) => (
+                    <tr key={detail.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 border font-mono text-sm">{detail.itemCode}</td>
+                      <td className="px-4 py-2 border">{detail.itemName}</td>
+                      <td className="px-4 py-2 border text-right">{detail.quantity.toLocaleString()}</td>
+                      <td className="px-4 py-2 border">{detail.unit}</td>
+                      <td className="px-4 py-2 border text-right">{detail.unitPrice?.toLocaleString() || "0"}</td>
+                      <td className="px-4 py-2 border text-right font-semibold">{detail.totalAmount?.toLocaleString() || "0"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50 font-semibold">
+                  <tr>
+                    <td colSpan={5} className="px-4 py-2 border text-right">Tổng cộng:</td>
+                    <td className="px-4 py-2 border text-right">
+                      {transactionDetails.reduce((sum, d) => sum + (d.totalAmount || 0), 0).toLocaleString()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+      </Drawer>
+
+      <Modal
+        title="Tạo phiếu nhập kho"
+        open={createModalOpen}
+        onCancel={() => setCreateModalOpen(false)}
+        footer={null}
+        width={1000}
+        destroyOnClose
+      >
+        <ImportForm
+          warehouseId={parseInt(warehouseId)}
+          onSuccess={() => {
+            setCreateModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: ["inventory", "import", warehouseId] });
+          }}
+          onCancel={() => setCreateModalOpen(false)}
+        />
+      </Modal>
+    </>
   );
 }

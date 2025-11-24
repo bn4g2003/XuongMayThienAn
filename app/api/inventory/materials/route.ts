@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { requirePermission } from '@/lib/permissions';
 import { ApiResponse } from '@/types';
+import { NextRequest, NextResponse } from 'next/server';
 
 // GET - Lấy tồn kho nguyên vật liệu theo warehouse
 export async function GET(request: NextRequest) {
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         m.id,
         m.material_code as "itemCode",
         m.material_name as "itemName",
-        COALESCE(ib.quantity, 0) as quantity,
+        CAST(COALESCE(ib.quantity, 0) AS DECIMAL(10,3)) as quantity,
         m.unit
        FROM materials m
        LEFT JOIN inventory_balances ib ON ib.material_id = m.id AND ib.warehouse_id = $1

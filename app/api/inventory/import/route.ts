@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { requirePermission } from '@/lib/permissions';
 import { ApiResponse } from '@/types';
+import { NextRequest, NextResponse } from 'next/server';
 
 // GET - Lấy danh sách phiếu nhập kho
 export async function GET(request: NextRequest) {
@@ -50,10 +50,13 @@ export async function GET(request: NextRequest) {
         w.warehouse_name as "toWarehouseName",
         it.status,
         it.notes,
-        u1.full_name as "createdBy",
+        it.created_by as "createdBy",
+        u1.full_name as "createdByName",
         it.created_at as "createdAt",
-        u2.full_name as "approvedBy",
-        it.approved_at as "approvedAt"
+        it.approved_by as "approvedBy",
+        u2.full_name as "approvedByName",
+        it.approved_at as "approvedAt",
+        COALESCE((SELECT SUM(itd.total_amount) FROM inventory_transaction_details itd WHERE itd.transaction_id = it.id), 0) as "totalAmount"
        FROM inventory_transactions it
        LEFT JOIN warehouses w ON w.id = it.to_warehouse_id
        LEFT JOIN users u1 ON u1.id = it.created_by

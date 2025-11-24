@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { requirePermission } from '@/lib/permissions';
 import { ApiResponse } from '@/types';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,11 +47,17 @@ export async function GET(request: NextRequest) {
         w.warehouse_name as "fromWarehouseName",
         it.status,
         it.notes,
-        u1.full_name as "createdBy",
-        it.created_at as "createdAt"
+        it.created_by as "createdBy",
+        u1.full_name as "createdByName",
+        it.created_at as "createdAt",
+        it.approved_by as "approvedBy",
+        u2.full_name as "approvedByName",
+        it.approved_at as "approvedAt",
+        COALESCE((SELECT SUM(itd.total_amount) FROM inventory_transaction_details itd WHERE itd.transaction_id = it.id), 0) as "totalAmount"
        FROM inventory_transactions it
        LEFT JOIN warehouses w ON w.id = it.from_warehouse_id
        LEFT JOIN users u1 ON u1.id = it.created_by
+       LEFT JOIN users u2 ON u2.id = it.approved_by
        ${whereClause}
        ORDER BY it.created_at DESC`,
       params

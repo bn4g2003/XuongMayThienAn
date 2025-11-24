@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { usePermissions } from "@/hooks/usePermissions";
-import WrapperContent from "@/components/WrapperContent";
 import CommonTable from "@/components/CommonTable";
-import useFilter from "@/hooks/useFilter";
+import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
-import { Button, Tag, Segmented, Spin } from "antd";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useQuery } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
+import { Button, Segmented, Spin, Tag } from "antd";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 
 type BalanceItem = {
   warehouseId: number;
@@ -58,7 +58,7 @@ export default function PageClient() {
   const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
     useColumn({ defaultColumns: columnsAll });
 
-  const { data: balanceData = { details: [], summary: [] }, isLoading } =
+  const { data: balanceData = { details: [], summary: [] }, isLoading, error: queryError } =
     useQuery({
       queryKey: ["inventory", "balance", warehouseId],
       enabled: !!warehouseId,
@@ -69,7 +69,12 @@ export default function PageClient() {
           }`
         );
         const body = await res.json();
-        return body.success ? body.data : { details: [], summary: [] };
+        
+        if (!body.success) {
+          throw new Error(body.error || 'Failed to fetch balance');
+        }
+        
+        return body.data;
       },
       staleTime: 60 * 1000,
     });
@@ -98,6 +103,16 @@ export default function PageClient() {
   const summary: SummaryItem[] = (balanceData.summary as SummaryItem[]) || [];
 
   const filteredDetails = applyFilter<BalanceItem>(details);
+
+  // Hiển thị lỗi nếu có
+  if (queryError) {
+    return (
+      <div className="p-6">
+        <h3 className="text-red-600">Lỗi: {queryError instanceof Error ? queryError.message : 'Unknown error'}</h3>
+        <Button onClick={() => router.push("/inventory/balance")}>Quay lại</Button>
+      </div>
+    );
+  }
 
   return (
     <WrapperContent<BalanceItem>
@@ -171,8 +186,8 @@ export default function PageClient() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {summary.map((s, idx) => (
-              <tr key={idx} className="hover:bg-gray-50">
+            {summary.map((s) => (
+              <tr key={s.itemCode} className="hover:bg-gray-50">
                 <td className="px-6 py-4 text-sm font-mono">{s.itemCode}</td>
                 <td className="px-6 py-4 text-sm font-medium">{s.itemName}</td>
                 <td className="px-6 py-4">

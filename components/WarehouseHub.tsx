@@ -1,13 +1,13 @@
 "use client";
 
-import { usePermissions } from "@/hooks/usePermissions";
-import useFilter from "@/hooks/useFilter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Tag, type TableColumnsType } from "antd";
 import useColumn from "@/hooks/useColumn";
+import { Tag, type TableColumnsType } from "antd";
 import Link from "next/link";
 
 type Warehouse = {
@@ -82,17 +82,6 @@ export default function WarehousesHub({ path }: { path: string }) {
       key: "branchName",
       width: 180,
       render: (val: string | undefined) => val || "-",
-    },
-    {
-      title: "Trạng thái",
-      dataIndex: "isActive",
-      key: "isActive",
-      width: 120,
-      render: (val: boolean | undefined) => (
-        <Tag color={val ? "success" : "error"}>
-          {val ? "Hoạt động" : "Đóng"}
-        </Tag>
-      ),
     },
     {
       title: "Thao tác",

@@ -1,80 +1,184 @@
 "use client";
 
-import React, { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { usePermissions } from "@/hooks/usePermissions";
-import WrapperContent from "@/components/WrapperContent";
 import CommonTable from "@/components/CommonTable";
-import useFilter from "@/hooks/useFilter";
+import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
-import { Button, Tag, Segmented, Spin } from "antd";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import { EyeOutlined } from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
+import { Button, Descriptions, Drawer, Tag } from "antd";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 
-type BalanceItem = {
-  warehouseId: number;
-  warehouseName: string;
+type HistoryTransaction = {
+  id: number;
+  transactionCode: string;
+  transactionType: "NHAP" | "XUAT" | "CHUYEN";
+  fromWarehouseId?: number;
+  fromWarehouseName?: string;
+  toWarehouseId?: number;
+  toWarehouseName?: string;
+  status: "PENDING" | "APPROVED" | "COMPLETED";
+  totalAmount: number;
+  notes?: string;
+  createdBy: number;
+  createdByName: string;
+  createdAt: string;
+  approvedBy?: number;
+  approvedByName?: string;
+  approvedAt?: string;
+};
+
+type TransactionDetail = {
+  id: number;
   itemCode: string;
   itemName: string;
   itemType: "NVL" | "THANH_PHAM";
   quantity: number;
   unit: string;
+  unitPrice?: number;
+  totalAmount?: number;
+  notes?: string;
 };
 
-export default function PageClient() {
+export default function TransactionHistoryWarehousePage() {
   const params = useParams() as { id?: string };
   const router = useRouter();
   const warehouseId = params?.id;
   const { can } = usePermissions();
   const { reset, applyFilter, updateQueries, query } = useFilter();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<HistoryTransaction | null>(null);
 
-  const [view, setView] = useState<"detail" | "summary">("detail");
+  const {
+    data: transactions = [],
+    isLoading,
+    isFetching,
+  } = useQuery<HistoryTransaction[]>({
+    queryKey: ["inventory", "history", warehouseId],
+    enabled: !!warehouseId,
+    queryFn: async () => {
+      const res = await fetch(`/api/inventory/history?warehouseId=${warehouseId}`);
+      const body = await res.json();
+      return body.success ? body.data : [];
+    },
+  });
 
-  const columnsAll: TableColumnsType<BalanceItem> = [
-    { title: "Mã", dataIndex: "itemCode", key: "itemCode", width: 140 },
-    { title: "Tên", dataIndex: "itemName", key: "itemName", width: 300 },
+  const { data: transactionDetails = [] } = useQuery<TransactionDetail[]>({
+    queryKey: ["inventory", "history", "details", selectedTransaction?.id],
+    enabled: !!selectedTransaction?.id,
+    queryFn: async () => {
+      const res = await fetch(`/api/inventory/history/${selectedTransaction?.id}`);
+      const body = await res.json();
+      return body.success ? body.data?.details || [] : [];
+    },
+  });
+
+  const handleView = (record: HistoryTransaction) => {
+    setSelectedTransaction(record);
+    setDrawerOpen(true);
+  };
+
+  const columnsAll: TableColumnsType<HistoryTransaction> = [
+    {
+      title: "Mã phiếu",
+      dataIndex: "transactionCode",
+      key: "transactionCode",
+      width: 140,
+    },
     {
       title: "Loại",
-      dataIndex: "itemType",
-      key: "itemType",
+      dataIndex: "transactionType",
+      key: "transactionType",
       width: 120,
-      render: (t: string) => (
-        <Tag color={t === "NVL" ? "purple" : "green"}>
-          {t === "NVL" ? "NVL" : "TP"}
-        </Tag>
-      ),
+      render: (type: string) => {
+        const colors = {
+          NHAP: "blue",
+          XUAT: "orange",
+          CHUYEN: "purple",
+        };
+        const labels = {
+          NHAP: "Nhập",
+          XUAT: "Xuất",
+          CHUYEN: "Chuyển",
+        };
+        return <Tag color={colors[type as keyof typeof colors]}>{labels[type as keyof typeof labels]}</Tag>;
+      },
     },
     {
-      title: "Số lượng",
-      dataIndex: "quantity",
-      key: "quantity",
+      title: "Kho xuất",
+      dataIndex: "fromWarehouseName",
+      key: "fromWarehouseName",
+      width: 180,
+      render: (val: string | undefined) => val || "-",
+    },
+    {
+      title: "Kho nhập",
+      dataIndex: "toWarehouseName",
+      key: "toWarehouseName",
+      width: 180,
+      render: (val: string | undefined) => val || "-",
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      width: 140,
+      render: (status: string) => {
+        const colors = {
+          PENDING: "orange",
+          APPROVED: "blue",
+          COMPLETED: "green",
+        };
+        const labels = {
+          PENDING: "Chờ duyệt",
+          APPROVED: "Đã duyệt",
+          COMPLETED: "Hoàn thành",
+        };
+        return <Tag color={colors[status as keyof typeof colors]}>{labels[status as keyof typeof labels]}</Tag>;
+      },
+    },
+    {
+      title: "Tổng tiền",
+      dataIndex: "totalAmount",
+      key: "totalAmount",
       width: 140,
       align: "right",
-      render: (q: number) => q?.toLocaleString() || "0",
+      render: (val: number) => val?.toLocaleString() || "0",
     },
-    { title: "Đơn vị", dataIndex: "unit", key: "unit", width: 120 },
+    {
+      title: "Người tạo",
+      dataIndex: "createdByName",
+      key: "createdByName",
+      width: 160,
+    },
+    {
+      title: "Ngày tạo",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      width: 160,
+      render: (val: string) => new Date(val).toLocaleString("vi-VN"),
+    },
+    {
+      title: "Thao tác",
+      key: "action",
+      width: 100,
+      fixed: "right",
+      render: (_: unknown, record: HistoryTransaction) => (
+        <Button type="link" icon={<EyeOutlined />} onClick={() => handleView(record)}>
+          Xem
+        </Button>
+      ),
+    },
   ];
 
-  const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
-    useColumn({ defaultColumns: columnsAll });
+  const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } = useColumn({ defaultColumns: columnsAll });
 
-  const { data: balanceData = { details: [], summary: [] }, isLoading } =
-    useQuery({
-      queryKey: ["inventory", "balance", warehouseId],
-      enabled: !!warehouseId,
-      queryFn: async () => {
-        const res = await fetch(
-          `/api/inventory/balance${
-            warehouseId ? `?warehouseId=${warehouseId}` : ""
-          }`
-        );
-        const body = await res.json();
-        return body.success ? body.data : { details: [], summary: [] };
-      },
-      staleTime: 60 * 1000,
-    });
+  const filtered = applyFilter<HistoryTransaction>(transactions);
 
-  if (!can("inventory.balance", "view")) {
+  if (!can("inventory.history", "view")) {
     return <div className="text-center py-12">🔒 Không có quyền truy cập</div>;
   }
 
@@ -82,113 +186,169 @@ export default function PageClient() {
     return (
       <div className="p-6">
         <h3>Không tìm thấy warehouseId trong route.</h3>
-        <Button onClick={() => router.push("/inventory")}>Quay lại</Button>
+        <Button onClick={() => router.push("/inventory/transaction-history")}>Quay lại</Button>
       </div>
     );
   }
 
-  const details: BalanceItem[] = balanceData.details || [];
-  type SummaryItem = {
-    itemCode: string;
-    itemName: string;
-    itemType: "NVL" | "THANH_PHAM";
-    totalQuantity: number;
-    unit: string;
-  };
-  const summary: SummaryItem[] = (balanceData.summary as SummaryItem[]) || [];
-
-  const filteredDetails = applyFilter<BalanceItem>(details);
-
   return (
-    <WrapperContent<BalanceItem>
-      isLoading={isLoading}
-      header={{
-        searchInput: {
-          placeholder: "Tìm kiếm kho",
-          filterKeys: ["itemName", "itemCode"],
-        },
-        filters: {
-          fields: [],
-          onApplyFilter: (arr) => updateQueries(arr),
-          onReset: () => reset(),
-          query,
-        },
-        columnSettings: {
-          columns: columnsCheck,
-          onChange: (c) => updateColumns(c),
-          onReset: () => resetColumns(),
-        },
-        buttonEnds: [
-          {
-            name: "",
-            icon: (
-              <Segmented
-                value={view}
-                onChange={(v) => setView(v as "detail" | "summary")}
-                options={[
-                  { label: "Chi tiết", value: "detail" },
-                  { label: "Tổng hợp", value: "summary" },
-                ]}
-              />
-            ),
-            type: "text",
-            onClick: () => {},
+    <>
+      <WrapperContent<HistoryTransaction>
+        isLoading={isLoading}
+        header={{
+          refetchDataWithKeys: ["inventory", "history", warehouseId],
+          searchInput: {
+            placeholder: "Tìm kiếm lịch sử giao dịch",
+            filterKeys: ["transactionCode", "fromWarehouseName", "toWarehouseName", "createdByName"],
           },
-        ],
-      }}
-    >
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <Spin />
-        </div>
-      ) : view === "detail" ? (
+          filters: {
+            fields: [
+              {
+                type: "select",
+                name: "transactionType",
+                label: "Loại giao dịch",
+                options: [
+                  { label: "Nhập kho", value: "NHAP" },
+                  { label: "Xuất kho", value: "XUAT" },
+                  { label: "Chuyển kho", value: "CHUYEN" },
+                ],
+              },
+              {
+                type: "select",
+                name: "status",
+                label: "Trạng thái",
+                options: [
+                  { label: "Chờ duyệt", value: "PENDING" },
+                  { label: "Đã duyệt", value: "APPROVED" },
+                  { label: "Hoàn thành", value: "COMPLETED" },
+                ],
+              },
+            ],
+            onApplyFilter: (arr) => updateQueries(arr),
+            onReset: () => reset(),
+            query,
+          },
+          columnSettings: {
+            columns: columnsCheck,
+            onChange: (c) => updateColumns(c),
+            onReset: () => resetColumns(),
+          },
+        }}
+      >
         <CommonTable
-          loading={isLoading}
           columns={getVisibleColumns()}
-          dataSource={filteredDetails}
+          dataSource={filtered}
+          loading={isLoading || isFetching}
           paging
           rank
         />
-      ) : (
-        <table className="w-full bg-white rounded-lg">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Mã
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Tên
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Loại
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                Tổng tồn
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Đơn vị
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {summary.map((s, idx) => (
-              <tr key={idx} className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-mono">{s.itemCode}</td>
-                <td className="px-6 py-4 text-sm font-medium">{s.itemName}</td>
-                <td className="px-6 py-4">
-                  <Tag color={s.itemType === "NVL" ? "purple" : "green"}>
-                    {s.itemType === "NVL" ? "NVL" : "Thành phẩm"}
-                  </Tag>
-                </td>
-                <td className="px-6 py-4 text-sm text-right font-bold">
-                  {(s.totalQuantity || 0).toLocaleString()}
-                </td>
-                <td className="px-6 py-4 text-sm">{s.unit}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </WrapperContent>
+      </WrapperContent>
+
+      <Drawer
+        title="Chi tiết giao dịch"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        size="large"
+      >
+        {selectedTransaction && (
+          <div className="space-y-6">
+            <Descriptions bordered column={2} size="small">
+              <Descriptions.Item label="Mã phiếu" span={2}>
+                {selectedTransaction.transactionCode}
+              </Descriptions.Item>
+              <Descriptions.Item label="Loại giao dịch">
+                <Tag color={
+                  selectedTransaction.transactionType === "NHAP" ? "blue" :
+                  selectedTransaction.transactionType === "XUAT" ? "orange" : "purple"
+                }>
+                  {selectedTransaction.transactionType === "NHAP" ? "Nhập kho" :
+                   selectedTransaction.transactionType === "XUAT" ? "Xuất kho" : "Chuyển kho"}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">
+                <Tag color={
+                  selectedTransaction.status === "PENDING" ? "orange" :
+                  selectedTransaction.status === "APPROVED" ? "blue" : "green"
+                }>
+                  {selectedTransaction.status === "PENDING" ? "Chờ duyệt" :
+                   selectedTransaction.status === "APPROVED" ? "Đã duyệt" : "Hoàn thành"}
+                </Tag>
+              </Descriptions.Item>
+              {selectedTransaction.fromWarehouseName && (
+                <Descriptions.Item label="Kho xuất">
+                  {selectedTransaction.fromWarehouseName}
+                </Descriptions.Item>
+              )}
+              {selectedTransaction.toWarehouseName && (
+                <Descriptions.Item label="Kho nhập">
+                  {selectedTransaction.toWarehouseName}
+                </Descriptions.Item>
+              )}
+              <Descriptions.Item label="Người tạo">
+                {selectedTransaction.createdByName}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày tạo">
+                {new Date(selectedTransaction.createdAt).toLocaleString("vi-VN")}
+              </Descriptions.Item>
+              {selectedTransaction.approvedByName && (
+                <>
+                  <Descriptions.Item label="Người duyệt">
+                    {selectedTransaction.approvedByName}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Ngày duyệt">
+                    {selectedTransaction.approvedAt ? new Date(selectedTransaction.approvedAt).toLocaleString("vi-VN") : "-"}
+                  </Descriptions.Item>
+                </>
+              )}
+              <Descriptions.Item label="Ghi chú" span={2}>
+                {selectedTransaction.notes || "-"}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Chi tiết hàng hóa</h3>
+              <table className="w-full border">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left border">Mã</th>
+                    <th className="px-4 py-2 text-left border">Tên</th>
+                    <th className="px-4 py-2 text-left border">Loại</th>
+                    <th className="px-4 py-2 text-right border">Số lượng</th>
+                    <th className="px-4 py-2 text-left border">ĐVT</th>
+                    <th className="px-4 py-2 text-right border">Đơn giá</th>
+                    <th className="px-4 py-2 text-right border">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactionDetails.map((detail, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 border font-mono text-sm">{detail.itemCode}</td>
+                      <td className="px-4 py-2 border">{detail.itemName}</td>
+                      <td className="px-4 py-2 border">
+                        <Tag color={detail.itemType === "NVL" ? "purple" : "green"}>
+                          {detail.itemType === "NVL" ? "NVL" : "TP"}
+                        </Tag>
+                      </td>
+                      <td className="px-4 py-2 border text-right">{detail.quantity.toLocaleString()}</td>
+                      <td className="px-4 py-2 border">{detail.unit}</td>
+                      <td className="px-4 py-2 border text-right">{detail.unitPrice?.toLocaleString() || "0"}</td>
+                      <td className="px-4 py-2 border text-right font-semibold">{detail.totalAmount?.toLocaleString() || "0"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50 font-semibold">
+                  <tr>
+                    <td colSpan={6} className="px-4 py-2 border text-right">Tổng cộng:</td>
+                    <td className="px-4 py-2 border text-right">
+                      {transactionDetails.reduce((sum, d) => sum + (d.totalAmount || 0), 0).toLocaleString()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+      </Drawer>
+    </>
   );
 }
