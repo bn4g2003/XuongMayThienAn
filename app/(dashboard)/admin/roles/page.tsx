@@ -3,7 +3,6 @@
 import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
-import { useFileExport } from "@/hooks/useFileExport";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
@@ -26,6 +25,7 @@ import {
   Form,
   Input,
   Modal,
+  Tag,
   Tooltip,
 } from "antd";
 import { useState } from "react";
@@ -35,6 +35,7 @@ interface Role {
   roleCode: string;
   roleName: string;
   description?: string;
+  level: number;
   userCount: number;
 }
 
@@ -42,6 +43,7 @@ type RoleFormValues = {
   roleCode: string;
   roleName: string;
   description?: string;
+  level: number;
 };
 
 export default function RolesPage() {
@@ -164,6 +166,23 @@ export default function RolesPage() {
       width: 220,
     },
     {
+      title: "Cấp độ",
+      dataIndex: "level",
+      key: "level",
+      width: 100,
+      render: (level: number) => {
+        const levelMap: Record<number, { text: string; color: string }> = {
+          1: { text: "Level 1", color: "default" },
+          2: { text: "Level 2", color: "blue" },
+          3: { text: "Level 3", color: "cyan" },
+          4: { text: "Level 4", color: "orange" },
+          5: { text: "Level 5", color: "red" },
+        };
+        const info = levelMap[level] || { text: `Level ${level}`, color: "default" };
+        return <Tag color={info.color}>{info.text}</Tag>;
+      },
+    },
+    {
       title: "Mô tả",
       dataIndex: "description",
       key: "description",
@@ -224,13 +243,11 @@ export default function RolesPage() {
 
   const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
     useColumn({ defaultColumns: columnsAll });
-  const { exportToXlsx } = useFileExport<Role>(columnsAll);
 
   return (
     <>
       <WrapperContent<Role>
         isNotAccessible={!can("admin.roles", "view")}
-        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["roles"],
@@ -245,12 +262,7 @@ export default function RolesPage() {
                 {
                   type: "default",
                   name: "Xuất Excel",
-                  onClick: () => {
-                    exportToXlsx(
-                      filtered,
-                      `vai_tro_${new Date().toISOString()}.xlsx`
-                    );
-                  },
+                  onClick: () => {},
                   icon: <DownloadOutlined />,
                   isLoading: true,
                 },
@@ -327,8 +339,9 @@ export default function RolesPage() {
                   roleCode: selected.roleCode,
                   roleName: selected.roleName,
                   description: selected.description,
+                  level: selected.level || 3,
                 }
-              : undefined
+              : { level: 3 }
           }
           onCancel={() => setModalOpen(false)}
           onSubmit={handleSubmit}
@@ -376,6 +389,27 @@ function RoleForm({
       <Form.Item name="description" label="Mô tả">
         <Input.TextArea rows={3} />
       </Form.Item>
+      <Form.Item
+        name="level"
+        label="Cấp độ quyền"
+        rules={[{ required: true, message: "Vui lòng chọn cấp độ" }]}
+        initialValue={3}
+      >
+        <select className="w-full px-3 py-2 border rounded">
+          <option value={1}>Level 1 - Nhân viên cơ bản (Chỉ xem)</option>
+          <option value={2}>Level 2 - Nhân viên (Xem + Tạo)</option>
+          <option value={3}>Level 3 - Trưởng nhóm (Xem + Tạo + Sửa)</option>
+          <option value={4}>Level 4 - Quản lý (Xem + Tạo + Sửa + Xóa)</option>
+          <option value={5}>Level 5 - Giám đốc (Full quyền)</option>
+        </select>
+      </Form.Item>
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+        <p className="font-medium text-blue-900 mb-1">💡 Quyền tự động</p>
+        <p className="text-blue-700">
+          Khi tạo/sửa role, hệ thống sẽ tự động cấp quyền theo cấp độ đã chọn. 
+          Bạn có thể tinh chỉnh thêm ở trang "Phân quyền".
+        </p>
+      </div>
       <div className="flex gap-2 justify-end">
         <Button onClick={onCancel}>Hủy</Button>
         <Button type="primary" htmlType="submit" loading={loading}>

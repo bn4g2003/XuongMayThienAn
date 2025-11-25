@@ -7,7 +7,10 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import useColumn from "@/hooks/useColumn";
-import { DownloadOutlined, UploadOutlined } from "@ant-design/icons";
+import {
+  DownloadOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import { Tag, type TableColumnsType } from "antd";
 import Link from "next/link";
 
@@ -111,12 +114,7 @@ export default function WarehousesHub({ path }: { path: string }) {
   return (
     <>
       <WrapperContent<Warehouse>
-<<<<<<< HEAD
         isNotAccessible={!can("inventory.balance", "view")}
-=======
-        isNotAccessible={!can("admin.warehouses", "view")}
-        isRefetching={isFetching}
->>>>>>> d6e7b75f6056fc4a697c975b22da066de5e6b88b
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["warehouses"],
