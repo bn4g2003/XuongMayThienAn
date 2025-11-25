@@ -1,35 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import { usePermissions } from "@/hooks/usePermissions";
-import useFilter from "@/hooks/useFilter";
-import {
-  useCustomerGroups,
-  useDeleteCustomerGroup,
-  useCreateCustomerGroup,
-  useUpdateCustomerGroup,
-  CUSTOMER_GROUP_KEYS,
-} from "@/hooks/useCustomerGroupQuery";
 import CommonTable from "@/components/CommonTable";
-import WrapperContent from "@/components/WrapperContent";
-import { App, Button, Modal } from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  MoreOutlined,
-  EyeOutlined,
-  UploadOutlined,
-  DownloadOutlined,
-} from "@ant-design/icons";
-import type { TableColumnsType } from "antd";
-import useColumn from "@/hooks/useColumn";
-import { Dropdown } from "antd";
-import type { CustomerGroup } from "@/services/customerGroupService";
 import CustomerGroupDetailDrawer from "@/components/customers/CustomerGroupDetailDrawer";
 import CustomerGroupFormModal, {
   type CustomerGroupFormValues,
 } from "@/components/customers/CustomerGroupFormModal";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import {
+  CUSTOMER_GROUP_KEYS,
+  useCreateCustomerGroup,
+  useCustomerGroups,
+  useDeleteCustomerGroup,
+  useUpdateCustomerGroup,
+} from "@/hooks/useCustomerGroupQuery";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import type { CustomerGroup } from "@/services/customerGroupService";
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  EyeOutlined,
+  MoreOutlined,
+  PlusOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
+import type { TableColumnsType } from "antd";
+import { App, Button, Dropdown } from "antd";
+import { useState } from "react";
 
 export default function CustomerGroupsPage() {
   const { can } = usePermissions();
@@ -208,6 +207,7 @@ export default function CustomerGroupsPage() {
     <>
       <WrapperContent<CustomerGroup>
         isNotAccessible={!can("sales.customers", "view")}
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: CUSTOMER_GROUP_KEYS.all,

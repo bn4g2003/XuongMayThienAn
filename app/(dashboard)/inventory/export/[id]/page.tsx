@@ -249,6 +249,7 @@ export default function ExportWarehousePage() {
   return (
     <>
       <WrapperContent<ExportTransaction>
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["inventory", "export", warehouseId],

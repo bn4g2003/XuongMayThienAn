@@ -1,39 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import { usePermissions } from "@/hooks/usePermissions";
-import useFilter from "@/hooks/useFilter";
-import {
-  useUsers,
-  useDeleteUser,
-  useCreateUser,
-  useUpdateUser,
-  USER_KEYS,
-} from "@/hooks/useUserQuery";
 import CommonTable from "@/components/CommonTable";
-import WrapperContent from "@/components/WrapperContent";
-import { Button, Tag, App } from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  LockOutlined,
-  UnlockOutlined,
-  MoreOutlined,
-  EyeOutlined,
-  UploadOutlined,
-  DownloadOutlined,
-} from "@ant-design/icons";
-import type { TableColumnsType } from "antd";
-import useColumn from "@/hooks/useColumn";
-import { Dropdown } from "antd";
-import type { User } from "@/services/userService";
-import { useQuery } from "@tanstack/react-query";
-import { roleService, branchService } from "@/services/commonService";
 import UserDetailDrawer from "@/components/users/UserDetailDrawer";
 import UserFormModal, {
   type UserFormValues,
 } from "@/components/users/UserFormModal";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import { useFileExport } from "@/hooks/useFileExport";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import {
+  useCreateUser,
+  useDeleteUser,
+  USER_KEYS,
+  useUpdateUser,
+  useUsers,
+} from "@/hooks/useUserQuery";
+import { branchService, roleService } from "@/services/commonService";
+import type { User } from "@/services/userService";
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  EyeOutlined,
+  LockOutlined,
+  MoreOutlined,
+  PlusOutlined,
+  UnlockOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
+import type { TableColumnsType } from "antd";
+import { App, Button, Dropdown, Tag } from "antd";
+import { useState } from "react";
 
 export default function UsersPage() {
   const { can } = usePermissions();
@@ -199,6 +199,7 @@ export default function UsersPage() {
       },
     },
   ];
+  const { exportToXlsx } = useFileExport<User>(columnsAll);
 
   const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
     useColumn({ defaultColumns: columnsAll });
@@ -207,6 +208,7 @@ export default function UsersPage() {
     <>
       <WrapperContent<User>
         isNotAccessible={!can("admin.users", "view")}
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: USER_KEYS.all,
@@ -221,7 +223,12 @@ export default function UsersPage() {
                 {
                   type: "default",
                   name: "Xuất Excel",
-                  onClick: () => {},
+                  onClick: () => {
+                    exportToXlsx(
+                      filteredUsers,
+                      `nguoi_dung_${new Date().toISOString()}.xlsx`
+                    );
+                  },
                   icon: <DownloadOutlined />,
                 },
                 {

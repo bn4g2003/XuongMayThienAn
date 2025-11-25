@@ -1,38 +1,37 @@
 "use client";
 
-import { useState } from "react";
-import { usePermissions } from "@/hooks/usePermissions";
-import useFilter from "@/hooks/useFilter";
-import {
-  useCustomers,
-  useDeleteCustomer,
-  useCreateCustomer,
-  useUpdateCustomer,
-  useCustomerGroups,
-  CUSTOMER_KEYS,
-} from "@/hooks/useCustomerQuery";
 import CommonTable from "@/components/CommonTable";
-import WrapperContent from "@/components/WrapperContent";
-import { Button, Tag, Modal, App } from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  LockOutlined,
-  UnlockOutlined,
-  MoreOutlined,
-  EyeOutlined,
-  UploadOutlined,
-  DownloadOutlined,
-} from "@ant-design/icons";
-import type { TableColumnsType } from "antd";
-import useColumn from "@/hooks/useColumn";
-import { Dropdown } from "antd";
-import type { Customer } from "@/services/customerService";
 import CustomerDetailDrawer from "@/components/customers/CustomerDetailDrawer";
 import CustomerFormModal, {
   type CustomerFormValues,
 } from "@/components/customers/CustomerFormModal";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import {
+  CUSTOMER_KEYS,
+  useCreateCustomer,
+  useCustomerGroups,
+  useCustomers,
+  useDeleteCustomer,
+  useUpdateCustomer,
+} from "@/hooks/useCustomerQuery";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import type { Customer } from "@/services/customerService";
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  EyeOutlined,
+  LockOutlined,
+  MoreOutlined,
+  PlusOutlined,
+  UnlockOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
+import type { TableColumnsType } from "antd";
+import { App, Button, Dropdown, Tag } from "antd";
+import { useState } from "react";
 
 export default function CustomersPage() {
   const { can } = usePermissions();
@@ -241,6 +240,7 @@ export default function CustomersPage() {
     <>
       <WrapperContent<Customer>
         isNotAccessible={!can("sales.customers", "view")}
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: CUSTOMER_KEYS.all,

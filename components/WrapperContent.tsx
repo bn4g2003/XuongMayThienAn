@@ -37,6 +37,7 @@ interface WrapperContentProps<T extends object> {
   title?: string;
   children: React.ReactNode;
   isLoading?: boolean;
+  isRefetching?: boolean;
   isNotAccessible?: boolean;
   isEmpty?: boolean;
   header: {
@@ -75,6 +76,7 @@ function WrapperContent<T extends object>({
   title,
   header,
   isLoading = false,
+  isRefetching = false,
   isNotAccessible = false,
   isEmpty = false,
   className = "",
@@ -82,7 +84,7 @@ function WrapperContent<T extends object>({
   const router = useRouter();
   const [formFilter] = Form.useForm();
 
-  useSetTitlePage(title || null);
+  useSetTitlePage(title || "");
   const [isOpenFilterModal, setIsOpenFilterModal] = useState(false);
   const [isOpenColumnSettings, setIsOpenColumnSettings] = useState(false);
   const [isMobileOptionsOpen, setIsMobileOptionsOpen] = useState(false);
@@ -161,6 +163,7 @@ function WrapperContent<T extends object>({
             <div className="flex items-center gap-3">
               {header.buttonBackTo && (
                 <Button
+                  disabled={isLoading || isRefetching}
                   type="default"
                   icon={<ArrowLeftOutlined />}
                   onClick={() => router.push(header.buttonBackTo!)}
@@ -202,6 +205,7 @@ function WrapperContent<T extends object>({
                     <Tooltip title="Bộ lọc">
                       <span>
                         <Button
+                          disabled={isLoading || isRefetching}
                           type={hasActiveFilters ? "primary" : "default"}
                           icon={<FilterOutlined />}
                         />
@@ -221,6 +225,7 @@ function WrapperContent<T extends object>({
                         <h3 className=" font-medium  mb-0">Cài đặt cột</h3>
                         {header.columnSettings.onReset && (
                           <Button
+                            disabled={isLoading || isRefetching}
                             type="link"
                             size="small"
                             onClick={() => {
@@ -262,6 +267,7 @@ function WrapperContent<T extends object>({
                   <Tooltip title="Cài đặt cột">
                     <span>
                       <Button
+                        disabled={isLoading || isRefetching}
                         type={hasActiveColumnSettings ? "primary" : "default"}
                         icon={<SettingOutlined />}
                       />
@@ -273,6 +279,7 @@ function WrapperContent<T extends object>({
                 <Tooltip title="Đặt lại bộ lọc">
                   <span>
                     <Button
+                      disabled={isLoading || isRefetching}
                       onClick={handleResetFilters}
                       danger
                       icon={<DeleteOutlined />}
@@ -286,8 +293,9 @@ function WrapperContent<T extends object>({
                 <Tooltip title="Tải lại dữ liệu">
                   <span>
                     <Button
+                      disabled={isLoading || isRefetching}
                       type="default"
-                      icon={<SyncOutlined spin={isLoading} />}
+                      icon={<SyncOutlined spin={isLoading || isRefetching} />}
                       onClick={() => {
                         if (header.refetchDataWithKeys) {
                           queriesToInvalidate(header.refetchDataWithKeys);
@@ -308,6 +316,11 @@ function WrapperContent<T extends object>({
                     <Tooltip key={index} title={buttonEnd.name}>
                       <span>
                         <Button
+                          disabled={
+                            isLoading || buttonEnd.type === "primary"
+                              ? isLoading
+                              : isRefetching
+                          }
                           loading={buttonEnd.isLoading}
                           danger={buttonEnd.danger}
                           type={buttonEnd.type}
@@ -326,6 +339,7 @@ function WrapperContent<T extends object>({
             <div>
               {header.buttonBackTo && (
                 <Button
+                  disabled={isLoading || isRefetching}
                   type="default"
                   icon={<ArrowLeftOutlined />}
                   onClick={() => router.push(header.buttonBackTo!)}
@@ -337,6 +351,7 @@ function WrapperContent<T extends object>({
                 <Tooltip title="Tải lại dữ liệu">
                   <span>
                     <Button
+                      disabled={isLoading || isRefetching}
                       type="default"
                       icon={<SyncOutlined spin={isLoading} />}
                       onClick={() => {
@@ -353,6 +368,7 @@ function WrapperContent<T extends object>({
                 <Tooltip title="Đặt lại bộ lọc">
                   <span>
                     <Button
+                      disabled={isLoading || isRefetching}
                       onClick={handleResetFilters}
                       danger
                       icon={<DeleteOutlined />}
@@ -372,6 +388,7 @@ function WrapperContent<T extends object>({
                     <Tooltip key={index} title={buttonEnd.name}>
                       <span>
                         <Button
+                          disabled={isLoading || isRefetching}
                           loading={buttonEnd.isLoading}
                           danger={buttonEnd.danger}
                           type={buttonEnd.type}
@@ -382,15 +399,22 @@ function WrapperContent<T extends object>({
                     </Tooltip>
                   ))}
 
-              <Button
-                type={
-                  hasActiveFilters || hasActiveColumnSettings
-                    ? "primary"
-                    : "default"
-                }
-                icon={<FilterOutlined />}
-                onClick={() => setIsMobileOptionsOpen(true)}
-              />
+              {(header.searchInput ||
+                header.filters ||
+                header.columnSettings) && (
+                <Tooltip title="Tùy chọn">
+                  <Button
+                    disabled={isLoading || isRefetching}
+                    type={
+                      hasActiveFilters || hasActiveColumnSettings
+                        ? "primary"
+                        : "default"
+                    }
+                    icon={<FilterOutlined />}
+                    onClick={() => setIsMobileOptionsOpen(true)}
+                  />
+                </Tooltip>
+              )}
             </div>
           </>
         )}
@@ -434,6 +458,7 @@ function WrapperContent<T extends object>({
                 <h3 className=" font-medium  mb-0">Cài đặt cột</h3>
                 {header.columnSettings.onReset && (
                   <Button
+                    disabled={isLoading || isRefetching}
                     type="link"
                     size="small"
                     onClick={() =>

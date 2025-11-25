@@ -270,6 +270,7 @@ export default function TransferWarehousePage() {
   return (
     <>
       <WrapperContent<TransferTransaction>
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["inventory", "transfer", warehouseId],

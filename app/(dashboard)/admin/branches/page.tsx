@@ -29,7 +29,7 @@ import { useState } from "react";
 export default function BranchesPage() {
   const { can } = usePermissions();
   const { reset, applyFilter, updateQueries, query } = useFilter();
-  // const { exportToExcel } = useFileExport();
+
 
   const { data: branches = [], isLoading, isFetching } = useBranches();
   const qc = useQueryClient();
@@ -186,11 +186,13 @@ export default function BranchesPage() {
     (createMutation as unknown as { isPending?: boolean }).isPending ||
       (updateMutation as unknown as { isPending?: boolean }).isPending
   );
+  const { exportToXlsx } = useFileExport<Branch>(columnsAll);
 
   return (
     <>
       <WrapperContent<Branch>
         isNotAccessible={!can("admin.branches", "view")}
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: BRANCH_KEYS.all,
@@ -206,7 +208,10 @@ export default function BranchesPage() {
                   type: "default",
                   name: "Xuất Excel",
                   onClick: () => {
-                    // exportToExcel(filtered, "branches.xlsx");
+                    exportToXlsx(
+                      filtered,
+                      `chi-nhanh-${new Date().toISOString()}.xlsx`
+                    );
                   },
                   icon: <DownloadOutlined />,
                 },

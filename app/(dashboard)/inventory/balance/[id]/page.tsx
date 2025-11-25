@@ -66,26 +66,30 @@ export default function PageClient() {
     console.log("Nhập Excel tồn kho");
   };
 
-  const { data: balanceData = { details: [], summary: [] }, isLoading, error: queryError } =
-    useQuery({
-      queryKey: ["inventory", "balance", warehouseId],
-      enabled: !!warehouseId,
-      queryFn: async () => {
-        const res = await fetch(
-          `/api/inventory/balance${
-            warehouseId ? `?warehouseId=${warehouseId}` : ""
-          }`
-        );
-        const body = await res.json();
-        
-        if (!body.success) {
-          throw new Error(body.error || 'Failed to fetch balance');
-        }
-        
-        return body.data;
-      },
-      staleTime: 60 * 1000,
-    });
+  const {
+    data: balanceData = { details: [], summary: [] },
+    isLoading,
+    isFetching,
+    error: queryError,
+  } = useQuery({
+    queryKey: ["inventory", "balance", warehouseId],
+    enabled: !!warehouseId,
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/inventory/balance${
+          warehouseId ? `?warehouseId=${warehouseId}` : ""
+        }`
+      );
+      const body = await res.json();
+
+      if (!body.success) {
+        throw new Error(body.error || "Failed to fetch balance");
+      }
+
+      return body.data;
+    },
+    staleTime: 60 * 1000,
+  });
 
   if (!can("inventory.balance", "view")) {
     return <div className="text-center py-12">🔒 Không có quyền truy cập</div>;
@@ -107,14 +111,20 @@ export default function PageClient() {
   if (queryError) {
     return (
       <div className="p-6">
-        <h3 className="text-red-600">Lỗi: {queryError instanceof Error ? queryError.message : 'Unknown error'}</h3>
-        <Button onClick={() => router.push("/inventory/balance")}>Quay lại</Button>
+        <h3 className="text-red-600">
+          Lỗi:{" "}
+          {queryError instanceof Error ? queryError.message : "Unknown error"}
+        </h3>
+        <Button onClick={() => router.push("/inventory/balance")}>
+          Quay lại
+        </Button>
       </div>
     );
   }
 
   return (
     <WrapperContent<BalanceItem>
+      isRefetching={isFetching}
       isLoading={isLoading}
       header={{
         refetchDataWithKeys: ["inventory", "balance", warehouseId],

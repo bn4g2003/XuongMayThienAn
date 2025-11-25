@@ -1,21 +1,44 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { usePermissions } from '@/hooks/usePermissions';
-import WrapperContent from '@/components/WrapperContent';
-import { PlusOutlined, DownloadOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
-import Modal from '@/components/Modal';
-import PartnerDebtSidePanel from '@/components/PartnerDebtSidePanel';
+import CommonTable from "@/components/CommonTable";
+import PartnerDebtSidePanel from "@/components/PartnerDebtSidePanel";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import { useFileExport } from "@/hooks/useFileExport";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import {
+  DownloadOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  App,
+  Card,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Select,
+  Statistic,
+  Tabs,
+  type TableColumnsType,
+} from "antd";
+import { useState } from "react";
 
 interface Debt {
   id: number;
   debtCode: string;
-  debtType: 'RECEIVABLE' | 'PAYABLE';
+  debtType: "RECEIVABLE" | "PAYABLE";
   originalAmount: number;
   paidAmount: number;
   remainingAmount: number;
   dueDate: string;
-  status: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE';
+  status: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE";
   customerName?: string;
   customerCode?: string;
   customerPhone?: string;
@@ -89,125 +112,167 @@ interface BankAccount {
   balance: number;
 }
 
+type DebtFormValues = {
+  debtCode: string;
+  debtType: "RECEIVABLE" | "PAYABLE";
+  customerId?: number | null;
+  supplierId?: number | null;
+  originalAmount: number | string;
+  dueDate?: string;
+  notes?: string;
+};
+
 export default function DebtsPage() {
+  const { message } = App.useApp();
   const { can } = usePermissions();
-  const [debts, setDebts] = useState<Debt[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [customerSummaries, setCustomerSummaries] = useState<CustomerSummary[]>([]);
-  const [supplierSummaries, setSupplierSummaries] = useState<SupplierSummary[]>([]);
   const [selectedPartner, setSelectedPartner] = useState<{
     id: number;
     name: string;
     code: string;
-    type: 'customer' | 'supplier';
+    type: "customer" | "supplier";
     totalAmount: number;
     paidAmount: number;
     remainingAmount: number;
     totalOrders: number;
     unpaidOrders: number;
   } | null>(null);
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [loading, setLoading] = useState(true);
+
   const [showModal, setShowModal] = useState(false);
-  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
-  const [debtPayments, setDebtPayments] = useState<DebtPayment[]>([]);
   const [showSidePanel, setShowSidePanel] = useState(false);
-  const [activeTab, setActiveTab] = useState<'customers' | 'suppliers'>('customers');
+  const [activeTab, setActiveTab] = useState<"customers" | "suppliers">(
+    "customers"
+  );
 
-  const [formData, setFormData] = useState({
-    debtCode: '',
-    customerId: '',
-    supplierId: '',
-    debtType: 'RECEIVABLE' as 'RECEIVABLE' | 'PAYABLE',
-    originalAmount: '',
-    dueDate: '',
-    notes: '',
+  const [form] = Form.useForm();
+  const queryClient = useQueryClient();
+
+  const customersQuery = useQuery({
+    queryKey: ["sales", "customers"],
+    queryFn: async () => {
+      const res = await fetch("/api/sales/customers");
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Có lỗi xảy ra");
+      return data.data as Customer[];
+    },
   });
 
-  const [paymentFormData, setPaymentFormData] = useState({
-    paymentAmount: '',
-    paymentDate: new Date().toISOString().split('T')[0],
-    paymentMethod: 'CASH' as 'CASH' | 'BANK' | 'TRANSFER',
-    bankAccountId: '',
-    notes: '',
+  const suppliersQuery = useQuery({
+    queryKey: ["purchasing", "suppliers"],
+    queryFn: async () => {
+      const res = await fetch("/api/purchasing/suppliers");
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Có lỗi xảy ra");
+      return data.data as Supplier[];
+    },
   });
 
-  useEffect(() => {
-    fetchDebts();
-    fetchCustomers();
-    fetchSuppliers();
-    fetchBankAccounts();
-    fetchCustomerSummaries();
-    fetchSupplierSummaries();
-  }, []);
-
-  const fetchDebts = async () => {
-    try {
-      const res = await fetch('/api/finance/debts');
+  const bankAccountsQuery = useQuery({
+    queryKey: ["finance", "bank-accounts"],
+    queryFn: async () => {
+      const res = await fetch("/api/finance/bank-accounts?isActive=true");
       const data = await res.json();
-      if (data.success) setDebts(data.data);
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (!data.success) throw new Error(data.error || "Có lỗi xảy ra");
+      return data.data as BankAccount[];
+    },
+  });
 
-  const fetchCustomers = async () => {
-    try {
-      const res = await fetch('/api/sales/customers');
+  const customerSummariesQuery = useQuery({
+    queryKey: ["finance", "debts", "summary", "customers"],
+    queryFn: async () => {
+      const res = await fetch("/api/finance/debts/summary?type=customers");
       const data = await res.json();
-      if (data.success) setCustomers(data.data);
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
+      if (!data.success) throw new Error(data.error || "Có lỗi xảy ra");
+      return data.data as CustomerSummary[];
+    },
+  });
 
-  const fetchSuppliers = async () => {
-    try {
-      const res = await fetch('/api/purchasing/suppliers');
+  const supplierSummariesQuery = useQuery({
+    queryKey: ["finance", "debts", "summary", "suppliers"],
+    queryFn: async () => {
+      const res = await fetch("/api/finance/debts/summary?type=suppliers");
       const data = await res.json();
-      if (data.success) setSuppliers(data.data);
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
+      if (!data.success) throw new Error(data.error || "Có lỗi xảy ra");
+      return data.data as SupplierSummary[];
+    },
+  });
 
-  const fetchBankAccounts = async () => {
-    try {
-      const res = await fetch('/api/finance/bank-accounts?isActive=true');
+  // derive local values from queries
+  const customers = customersQuery.data ?? [];
+  const suppliers = suppliersQuery.data ?? [];
+  const bankAccounts = bankAccountsQuery.data ?? [];
+  const customerSummaries = customerSummariesQuery.data ?? [];
+  const supplierSummaries = supplierSummariesQuery.data ?? [];
+
+  const isLoading =
+    customersQuery.isLoading ||
+    suppliersQuery.isLoading ||
+    bankAccountsQuery.isLoading ||
+    customerSummariesQuery.isLoading ||
+    supplierSummariesQuery.isLoading;
+
+  const isFetching =
+    customersQuery.isFetching ||
+    suppliersQuery.isFetching ||
+    bankAccountsQuery.isFetching ||
+    customerSummariesQuery.isFetching ||
+    supplierSummariesQuery.isFetching;
+
+  const saveMutation = useMutation({
+    mutationFn: async (values: DebtFormValues) => {
+      const payload = {
+        ...values,
+        originalAmount: parseFloat(String(values.originalAmount || 0)),
+      };
+      const res = await fetch("/api/finance/debts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
       const data = await res.json();
-      if (data.success) setBankAccounts(data.data);
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
+      if (!data.success) throw new Error(data.error || "Có lỗi xảy ra");
+      return data;
+    },
+    onSuccess: () => {
+      message.success("Tạo công nợ thành công!");
+      setShowModal(false);
+      resetForm();
+      try {
+        queryClient.invalidateQueries({ queryKey: ["finance", "debts"] });
+        queryClient.invalidateQueries({ queryKey: ["sales", "customers"] });
+        queryClient.invalidateQueries({
+          queryKey: ["purchasing", "suppliers"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["finance", "bank-accounts"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["finance", "debts", "summary"],
+        });
+      } catch {
+        // ignore
+      }
+    },
+    onError: (err: unknown) => {
+      const error = err as Error;
+      message.error(error.message || "Có lỗi xảy ra");
+    },
+  });
 
-  const fetchCustomerSummaries = async () => {
-    try {
-      const res = await fetch('/api/finance/debts/summary?type=customers');
-      const data = await res.json();
-      if (data.success) setCustomerSummaries(data.data);
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
+  // old fetch helpers removed; data is loaded via react-query above
 
-  const fetchSupplierSummaries = async () => {
-    try {
-      const res = await fetch('/api/finance/debts/summary?type=suppliers');
-      const data = await res.json();
-      if (data.success) setSupplierSummaries(data.data);
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
+  const handleViewPartnerDetails = (
+    partner: CustomerSummary | SupplierSummary,
+    type: "customer" | "supplier"
+  ) => {
+    const name =
+      type === "customer"
+        ? (partner as CustomerSummary).customerName
+        : (partner as SupplierSummary).supplierName;
+    const code =
+      type === "customer"
+        ? (partner as CustomerSummary).customerCode
+        : (partner as SupplierSummary).supplierCode;
 
-  const handleViewPartnerDetails = (partner: any, type: 'customer' | 'supplier') => {
-    const name = type === 'customer' ? partner.customerName : partner.supplierName;
-    const code = type === 'customer' ? partner.customerCode : partner.supplierCode;
-    
     setSelectedPartner({
       id: partner.id,
       name,
@@ -221,179 +286,214 @@ export default function DebtsPage() {
     });
     setShowSidePanel(true);
   };
+  const debtType = Form.useWatch("debtType", form) || "RECEIVABLE";
 
-  const fetchDebtPayments = async (debtId: number) => {
-    try {
-      const res = await fetch(`/api/finance/debts/${debtId}/payments`);
-      const data = await res.json();
-      if (data.success) setDebtPayments(data.data);
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch('/api/finance/debts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          originalAmount: parseFloat(formData.originalAmount),
-          customerId: formData.customerId ? parseInt(formData.customerId) : null,
-          supplierId: formData.supplierId ? parseInt(formData.supplierId) : null,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('Tạo công nợ thành công!');
-        setShowModal(false);
-        resetForm();
-        fetchDebts();
-        fetchCustomers();
-        fetchSuppliers();
-      } else {
-        alert(data.error || 'Có lỗi xảy ra');
-      }
-    } catch (error) {
-      alert('Có lỗi xảy ra');
-    }
-  };
-
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDebt) return;
-    try {
-      const res = await fetch(`/api/finance/debts/${selectedDebt.id}/payments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...paymentFormData,
-          paymentAmount: parseFloat(paymentFormData.paymentAmount),
-          bankAccountId: paymentFormData.bankAccountId ? parseInt(paymentFormData.bankAccountId) : null,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('Thanh toán thành công!');
-        resetPaymentForm();
-        fetchDebts();
-        fetchDebtPayments(selectedDebt.id);
-        fetchCustomers();
-        fetchSuppliers();
-      } else {
-        alert(data.error || 'Có lỗi xảy ra');
-      }
-    } catch (error) {
-      alert('Có lỗi xảy ra');
-    }
-  };
-
-  const handleSelectDebt = (debt: Debt) => {
-    setSelectedDebt(debt);
-    fetchDebtPayments(debt.id);
-    setShowSidePanel(true);
+  const onFinish = (values: DebtFormValues) => {
+    saveMutation.mutate(values);
   };
 
   const resetForm = () => {
-    setFormData({
-      debtCode: '',
-      customerId: '',
-      supplierId: '',
-      debtType: 'RECEIVABLE',
-      originalAmount: '',
-      dueDate: '',
-      notes: '',
-    });
+    form.resetFields();
   };
 
-  const resetPaymentForm = () => {
-    setPaymentFormData({
-      paymentAmount: '',
-      paymentDate: new Date().toISOString().split('T')[0],
-      paymentMethod: 'CASH',
-      bankAccountId: '',
-      notes: '',
-    });
-  };
-
-  const getCustomerDebts = (customerId: number) => {
-    return debts.filter(d => d.debtType === 'RECEIVABLE' && customers.find(c => c.id === customerId && c.customerName === d.customerName));
-  };
-
-  const getSupplierDebts = (supplierId: number) => {
-    return debts.filter(d => d.debtType === 'PAYABLE' && suppliers.find(s => s.id === supplierId && s.supplierName === d.supplierName));
-  };
-
-  const [filterQueries, setFilterQueries] = useState<Record<string, any>>({});
-  const [searchTerm, setSearchTerm] = useState('');
+  const { reset, applyFilter, updateQueries, query } = useFilter();
 
   const handleResetAll = () => {
-    setActiveTab('customers');
-    setFilterQueries({});
-    setSearchTerm('');
+    setActiveTab("customers");
+    reset();
   };
 
+  const filteredCustomerSummaries = applyFilter(
+    customerSummaries as CustomerSummary[]
+  );
+  const filteredSupplierSummaries = applyFilter(
+    supplierSummaries as SupplierSummary[]
+  );
+
+  const totalReceivable = filteredCustomerSummaries.reduce(
+    (sum, c) => sum + parseFloat(c.remainingAmount?.toString() || "0"),
+    0
+  );
+  const totalPayable = filteredSupplierSummaries.reduce(
+    (sum, s) => sum + parseFloat(s.remainingAmount?.toString() || "0"),
+    0
+  );
+
+  const customerColumns: TableColumnsType<CustomerSummary> = [
+    {
+      title: "Mã KH",
+      dataIndex: "customerCode",
+      key: "customerCode",
+      width: 140,
+    },
+    { title: "Khách hàng", dataIndex: "customerName", key: "customerName" },
+    { title: "Liên hệ", dataIndex: "phone", key: "phone", width: 160 },
+    {
+      title: "Số ĐH",
+      dataIndex: "totalOrders",
+      key: "totalOrders",
+      width: 100,
+      align: "center",
+    },
+    {
+      title: "Tổng tiền",
+      dataIndex: "totalAmount",
+      key: "totalAmount",
+      width: 140,
+      align: "right",
+      render: (v: number) =>
+        parseFloat(String(v)).toLocaleString("vi-VN") + " đ",
+    },
+    {
+      title: "Đã trả",
+      dataIndex: "paidAmount",
+      key: "paidAmount",
+      width: 140,
+      align: "right",
+      render: (v: number) =>
+        parseFloat(String(v)).toLocaleString("vi-VN") + " đ",
+    },
+    {
+      title: "Còn nợ",
+      dataIndex: "remainingAmount",
+      key: "remainingAmount",
+      width: 140,
+      align: "right",
+      render: (v: number) =>
+        parseFloat(String(v)).toLocaleString("vi-VN") + " đ",
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      width: 120,
+      align: "right",
+      render: (_: unknown, record: CustomerSummary) => (
+        <button
+          onClick={() => handleViewPartnerDetails(record, "customer")}
+          className="text-blue-600 hover:text-blue-900"
+        >
+          Chi tiết
+        </button>
+      ),
+    },
+  ];
+
+  const supplierColumns: TableColumnsType<SupplierSummary> = [
+    {
+      title: "Mã NCC",
+      dataIndex: "supplierCode",
+      key: "supplierCode",
+      width: 140,
+    },
+    { title: "Nhà cung cấp", dataIndex: "supplierName", key: "supplierName" },
+    { title: "Liên hệ", dataIndex: "phone", key: "phone", width: 160 },
+    {
+      title: "Số ĐM",
+      dataIndex: "totalOrders",
+      key: "totalOrders",
+      width: 100,
+      align: "center",
+    },
+    {
+      title: "Tổng tiền",
+      dataIndex: "totalAmount",
+      key: "totalAmount",
+      width: 140,
+      align: "right",
+      render: (v: number) =>
+        parseFloat(String(v)).toLocaleString("vi-VN") + " đ",
+    },
+    {
+      title: "Đã trả",
+      dataIndex: "paidAmount",
+      key: "paidAmount",
+      width: 140,
+      align: "right",
+      render: (v: number) =>
+        parseFloat(String(v)).toLocaleString("vi-VN") + " đ",
+    },
+    {
+      title: "Còn nợ",
+      dataIndex: "remainingAmount",
+      key: "remainingAmount",
+      width: 140,
+      align: "right",
+      render: (v: number) =>
+        parseFloat(String(v)).toLocaleString("vi-VN") + " đ",
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      width: 120,
+      align: "right",
+      render: (_: unknown, record: SupplierSummary) => (
+        <button
+          onClick={() => handleViewPartnerDetails(record, "supplier")}
+          className="text-blue-600 hover:text-blue-900"
+        >
+          Chi tiết
+        </button>
+      ),
+    },
+  ];
+  const { exportToXlsx: exportCustomers } =
+    useFileExport<CustomerSummary>(customerColumns);
+
+  const { exportToXlsx: exportSuppliers } =
+    useFileExport<SupplierSummary>(supplierColumns);
+
   const handleExportExcel = () => {
-    alert('Chức năng xuất Excel đang được phát triển');
+    if (activeTab === "customers") {
+      exportCustomers(
+        filteredCustomerSummaries as CustomerSummary[],
+        `cong_no_khach_hang_${new Date().toISOString()}.xlsx`
+      );
+    } else {
+      exportSuppliers(
+        filteredSupplierSummaries as SupplierSummary[],
+        `cong_no_nha_cung_cap_${new Date().toISOString()}.xlsx`
+      );
+    }
   };
 
   const handleImportExcel = () => {
-    alert('Chức năng nhập Excel đang được phát triển');
+    message.info("Chức năng nhập Excel đang được phát triển");
   };
 
-  const filteredCustomerSummaries = customerSummaries.filter(c => {
-    const searchKey = 'search,customerCode,customerName,phone';
-    const searchValue = filterQueries[searchKey] || '';
-    const matchSearch = !searchValue || 
-      c.customerCode.toLowerCase().includes(searchValue.toLowerCase()) ||
-      c.customerName.toLowerCase().includes(searchValue.toLowerCase()) ||
-      c.phone?.includes(searchValue);
-    
-    const hasDebtValue = filterQueries['hasDebt'];
-    const matchDebt = hasDebtValue === undefined || 
-      (hasDebtValue === 'true' ? c.remainingAmount > 0 : c.remainingAmount === 0);
-    
-    return matchSearch && matchDebt;
-  });
-
-  const filteredSupplierSummaries = supplierSummaries.filter(s => {
-    const searchKey = 'search,supplierCode,supplierName,phone';
-    const searchValue = filterQueries[searchKey] || '';
-    const matchSearch = !searchValue || 
-      s.supplierCode.toLowerCase().includes(searchValue.toLowerCase()) ||
-      s.supplierName.toLowerCase().includes(searchValue.toLowerCase()) ||
-      s.phone?.includes(searchValue);
-    
-    const hasDebtValue = filterQueries['hasDebt'];
-    const matchDebt = hasDebtValue === undefined || 
-      (hasDebtValue === 'true' ? s.remainingAmount > 0 : s.remainingAmount === 0);
-    
-    return matchSearch && matchDebt;
-  });
-
-  const totalReceivable = filteredCustomerSummaries.reduce((sum, c) => sum + parseFloat(c.remainingAmount?.toString() || '0'), 0);
-  const totalPayable = filteredSupplierSummaries.reduce((sum, s) => sum + parseFloat(s.remainingAmount?.toString() || '0'), 0);
+  const {
+    columnsCheck: custColumnsCheck,
+    updateColumns: updateCustColumns,
+    resetColumns: resetCustColumns,
+    getVisibleColumns: getVisibleCustomerColumns,
+  } = useColumn({ defaultColumns: customerColumns });
+  const {
+    columnsCheck: suppColumnsCheck,
+    updateColumns: updateSuppColumns,
+    resetColumns: resetSuppColumns,
+    getVisibleColumns: getVisibleSupplierColumns,
+  } = useColumn({ defaultColumns: supplierColumns });
 
   return (
     <>
       <WrapperContent
         title="Quản lý công nợ"
-        isNotAccessible={!can('finance.debts', 'view')}
-        isLoading={loading}
+        isNotAccessible={!can("finance.debts", "view")}
+        isRefetching={isFetching}
+        isLoading={isLoading}
         header={{
-          buttonEnds: can('finance.debts', 'create')
+          refetchDataWithKeys: [
+            "finance",
+            "debts",
+            "orders",
+            "customers",
+            "suppliers",
+            "bank-accounts",
+          ],
+          buttonEnds: can("finance.debts", "create")
             ? [
                 {
-                  type: 'default',
-                  name: 'Đặt lại',
-                  onClick: handleResetAll,
-                  icon: <ReloadOutlined />,
-                },
-                {
-                  type: 'primary',
-                  name: 'Thêm',
+                  type: "primary",
+                  name: "Thêm",
                   onClick: () => {
                     resetForm();
                     setShowModal(true);
@@ -401,402 +501,277 @@ export default function DebtsPage() {
                   icon: <PlusOutlined />,
                 },
                 {
-                  type: 'default',
-                  name: 'Xuất Excel',
+                  type: "default",
+                  name: "Xuất Excel",
                   onClick: handleExportExcel,
                   icon: <DownloadOutlined />,
                 },
                 {
-                  type: 'default',
-                  name: 'Nhập Excel',
+                  type: "default",
+                  name: "Nhập Excel",
                   onClick: handleImportExcel,
                   icon: <UploadOutlined />,
                 },
               ]
             : [
                 {
-                  type: 'default',
-                  name: 'Đặt lại',
+                  type: "default",
+                  name: "Đặt lại",
                   onClick: handleResetAll,
                   icon: <ReloadOutlined />,
                 },
               ],
           searchInput: {
-            placeholder: activeTab === 'customers' 
-              ? 'Tìm theo mã KH, tên, SĐT...' 
-              : 'Tìm theo mã NCC, tên, SĐT...',
-            filterKeys: activeTab === 'customers' 
-              ? ['customerCode', 'customerName', 'phone']
-              : ['supplierCode', 'supplierName', 'phone'],
+            placeholder:
+              activeTab === "customers"
+                ? "Tìm theo mã KH, tên, SĐT..."
+                : "Tìm theo mã NCC, tên, SĐT...",
+            filterKeys:
+              activeTab === "customers"
+                ? ["customerCode", "customerName", "phone"]
+                : ["supplierCode", "supplierName", "phone"],
           },
           filters: {
             fields: [
               {
-                type: 'select',
-                name: 'hasDebt',
-                label: 'Công nợ',
+                type: "select",
+                name: "hasDebt",
+                label: "Công nợ",
                 options: [
-                  { label: 'Có công nợ', value: 'true' },
-                  { label: 'Đã thanh toán', value: 'false' },
+                  { label: "Có công nợ", value: "true" },
+                  { label: "Đã thanh toán", value: "false" },
                 ],
               },
             ],
-            onApplyFilter: (arr) => {
-              const newQueries: Record<string, any> = { ...filterQueries };
-              arr.forEach(({ key, value }) => {
-                newQueries[key] = value;
-              });
-              setFilterQueries(newQueries);
-            },
-            onReset: () => {
-              setFilterQueries({});
-              setSearchTerm('');
-            },
-            query: filterQueries,
+            onApplyFilter: (arr) => updateQueries(arr),
+            onReset: () => reset(),
+            query,
           },
+          columnSettings:
+            activeTab === "customers"
+              ? {
+                  columns: custColumnsCheck,
+                  onChange: (c) => updateCustColumns(c),
+                  onReset: () => resetCustColumns(),
+                }
+              : {
+                  columns: suppColumnsCheck,
+                  onChange: (c) => updateSuppColumns(c),
+                  onReset: () => resetSuppColumns(),
+                },
         }}
       >
         <div className="flex">
           {/* Main Content */}
-          <div className={`flex-1 transition-all duration-300 ${showSidePanel ? 'mr-[600px]' : ''}`}>
+          <div
+            className={`flex-1 transition-all duration-300 ${
+              showSidePanel ? "mr-[600px]" : ""
+            }`}
+          >
             <div className="space-y-6">
-
               {/* Summary */}
-              <div className="grid grid-cols-2 gap-4">
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="text-sm text-green-600 mb-1">Tổng phải thu (Khách hàng)</div>
-            <div className="text-2xl font-bold text-green-700">
-              {totalReceivable.toLocaleString('vi-VN')} đ
-            </div>
-            <div className="text-xs text-green-600 mt-1">
-              {filteredCustomerSummaries.length} khách hàng
-            </div>
-          </div>
-          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-            <div className="text-sm text-red-600 mb-1">Tổng phải trả (Nhà cung cấp)</div>
-            <div className="text-2xl font-bold text-red-700">
-              {totalPayable.toLocaleString('vi-VN')} đ
-            </div>
-            <div className="text-xs text-red-600 mt-1">
-              {filteredSupplierSummaries.length} nhà cung cấp
-            </div>
-          </div>
-        </div>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12}>
+                  <Card>
+                    <Statistic
+                      title="Tổng phải thu (Khách hàng)"
+                      value={totalReceivable.toLocaleString("vi-VN")}
+                      suffix=" đ"
+                    />
+                    <div className="text-xs text-green-600 mt-1">
+                      {filteredCustomerSummaries.length} khách hàng
+                    </div>
+                  </Card>
+                </Col>
+
+                <Col xs={24} sm={12}>
+                  <Card>
+                    <Statistic
+                      title="Tổng phải trả (Nhà cung cấp)"
+                      value={totalPayable.toLocaleString("vi-VN")}
+                      suffix=" đ"
+                    />
+                    <div className="text-xs text-red-600 mt-1">
+                      {filteredSupplierSummaries.length} nhà cung cấp
+                    </div>
+                  </Card>
+                </Col>
+              </Row>
 
               {/* Tabs */}
-              <div className="border-b">
-          <div className="flex gap-4">
-            <button
-              onClick={() => setActiveTab('customers')}
-              className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-                activeTab === 'customers'
-                  ? 'border-green-600 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Khách hàng ({filteredCustomerSummaries.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('suppliers')}
-              className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-                activeTab === 'suppliers'
-                  ? 'border-red-600 text-red-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Nhà cung cấp ({filteredSupplierSummaries.length})
-            </button>
-          </div>
-        </div>
+              <Tabs
+                activeKey={activeTab}
+                onChange={(key) =>
+                  setActiveTab(key as "customers" | "suppliers")
+                }
+                items={[
+                  {
+                    key: "customers",
+                    label: `Khách hàng (${filteredCustomerSummaries.length})`,
+                  },
+                  {
+                    key: "suppliers",
+                    label: `Nhà cung cấp (${filteredSupplierSummaries.length})`,
+                  },
+                ]}
+              />
 
               {/* Customer Summary Table */}
-              {activeTab === 'customers' && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã KH</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Khách hàng</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Liên hệ</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Số ĐH</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tổng tiền</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Đã trả</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Còn nợ</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredCustomerSummaries.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
-                      Không có khách hàng nào có đơn hàng
-                    </td>
-                  </tr>
-                ) : (
-                  filteredCustomerSummaries.map((customer) => (
-                    <tr key={customer.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {customer.customerCode}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="font-medium">{customer.customerName}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        <div>📞 {customer.phone}</div>
-                        {customer.email && <div className="text-xs">✉️ {customer.email}</div>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                        <div>{customer.totalOrders} đơn</div>
-                        {customer.unpaidOrders > 0 && (
-                          <div className="text-xs text-orange-600">{customer.unpaidOrders} chưa TT</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                        {parseFloat(customer.totalAmount.toString()).toLocaleString('vi-VN')} đ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600">
-                        {parseFloat(customer.paidAmount.toString()).toLocaleString('vi-VN')} đ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-orange-700">
-                        {parseFloat(customer.remainingAmount.toString()).toLocaleString('vi-VN')} đ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => handleViewPartnerDetails(customer, 'customer')}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Chi tiết
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+              {activeTab === "customers" && (
+                <CommonTable
+                  columns={getVisibleCustomerColumns()}
+                  dataSource={filteredCustomerSummaries}
+                  loading={isLoading || isFetching}
+                  paging
+                />
+              )}
 
               {/* Supplier Summary Table */}
-              {activeTab === 'suppliers' && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã NCC</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nhà cung cấp</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Liên hệ</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Số ĐM</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tổng tiền</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Đã trả</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Còn nợ</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredSupplierSummaries.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
-                      Không có nhà cung cấp nào có đơn mua
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSupplierSummaries.map((supplier) => (
-                    <tr key={supplier.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {supplier.supplierCode}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="font-medium">{supplier.supplierName}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        <div>📞 {supplier.phone}</div>
-                        {supplier.email && <div className="text-xs">✉️ {supplier.email}</div>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                        <div>{supplier.totalOrders} đơn</div>
-                        {supplier.unpaidOrders > 0 && (
-                          <div className="text-xs text-orange-600">{supplier.unpaidOrders} chưa TT</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                        {parseFloat(supplier.totalAmount.toString()).toLocaleString('vi-VN')} đ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600">
-                        {parseFloat(supplier.paidAmount.toString()).toLocaleString('vi-VN')} đ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-orange-700">
-                        {parseFloat(supplier.remainingAmount.toString()).toLocaleString('vi-VN')} đ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => handleViewPartnerDetails(supplier, 'supplier')}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Chi tiết
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+              {activeTab === "suppliers" && (
+                <CommonTable
+                  columns={getVisibleSupplierColumns()}
+                  dataSource={filteredSupplierSummaries}
+                  loading={isLoading || isFetching}
+                  paging
+                />
+              )}
             </div>
           </div>
 
           {/* Side Panel - Partner Debt */}
-      {showSidePanel && selectedPartner && (
-        <PartnerDebtSidePanel
-          partnerId={selectedPartner.id}
-          partnerName={selectedPartner.name}
-          partnerCode={selectedPartner.code}
-          partnerType={selectedPartner.type}
-          totalAmount={selectedPartner.totalAmount}
-          paidAmount={selectedPartner.paidAmount}
-          remainingAmount={selectedPartner.remainingAmount}
-          totalOrders={selectedPartner.totalOrders}
-          unpaidOrders={selectedPartner.unpaidOrders}
-          bankAccounts={bankAccounts}
-          canEdit={can('finance.debts', 'edit')}
-          onClose={() => {
-            setShowSidePanel(false);
-            setSelectedPartner(null);
-          }}
-          onPaymentSuccess={() => {
-            setShowSidePanel(false);
-            setSelectedPartner(null);
-            fetchCustomerSummaries();
-            fetchSupplierSummaries();
-          }}
-        />
-      )}
-
-      {/* Create Debt Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => {
-          setShowModal(false);
-          resetForm();
-        }}
-        title="Thêm công nợ"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Mã công nợ *</label>
-            <input
-              type="text"
-              value={formData.debtCode}
-              onChange={(e) => setFormData({ ...formData, debtCode: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Loại công nợ *</label>
-            <select
-              value={formData.debtType}
-              onChange={(e) => setFormData({ ...formData, debtType: e.target.value as any, customerId: '', supplierId: '' })}
-              className="w-full px-3 py-2 border rounded"
-              required
-            >
-              <option value="RECEIVABLE">Phải thu (Khách hàng)</option>
-              <option value="PAYABLE">Phải trả (Nhà cung cấp)</option>
-            </select>
-          </div>
-
-          {formData.debtType === 'RECEIVABLE' && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Khách hàng *</label>
-              <select
-                value={formData.customerId}
-                onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-                className="w-full px-3 py-2 border rounded"
-                required
-              >
-                <option value="">-- Chọn khách hàng --</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.customerName} ({c.customerCode})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {formData.debtType === 'PAYABLE' && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Nhà cung cấp *</label>
-              <select
-                value={formData.supplierId}
-                onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
-                className="w-full px-3 py-2 border rounded"
-                required
-              >
-                <option value="">-- Chọn nhà cung cấp --</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.supplierName} ({s.supplierCode})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Số tiền *</label>
-            <input
-              type="number"
-              value={formData.originalAmount}
-              onChange={(e) => setFormData({ ...formData, originalAmount: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
-              required
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Hạn thanh toán</label>
-            <input
-              type="date"
-              value={formData.dueDate}
-              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Ghi chú</label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
-              rows={3}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowModal(false);
-                resetForm();
+          {showSidePanel && selectedPartner && (
+            <PartnerDebtSidePanel
+              partnerId={selectedPartner.id}
+              partnerName={selectedPartner.name}
+              partnerCode={selectedPartner.code}
+              partnerType={selectedPartner.type}
+              totalAmount={selectedPartner.totalAmount}
+              paidAmount={selectedPartner.paidAmount}
+              remainingAmount={selectedPartner.remainingAmount}
+              totalOrders={selectedPartner.totalOrders}
+              unpaidOrders={selectedPartner.unpaidOrders}
+              bankAccounts={bankAccounts}
+              canEdit={can("finance.debts", "edit")}
+              onClose={() => {
+                setShowSidePanel(false);
+                setSelectedPartner(null);
               }}
-              className="px-4 py-2 border rounded hover:bg-gray-50"
+              onPaymentSuccess={() => {
+                setShowSidePanel(false);
+                setSelectedPartner(null);
+                try {
+                  queryClient.invalidateQueries({
+                    queryKey: ["finance", "debts", "summary"],
+                  });
+                  queryClient.invalidateQueries({
+                    queryKey: ["sales", "customers"],
+                  });
+                  queryClient.invalidateQueries({
+                    queryKey: ["purchasing", "suppliers"],
+                  });
+                } catch {
+                  // ignore
+                }
+              }}
+            />
+          )}
+
+          {/* Create Debt Modal */}
+          <Modal
+            open={showModal}
+            onCancel={() => {
+              setShowModal(false);
+              resetForm();
+            }}
+            title="Thêm công nợ"
+            onOk={() => form.submit()}
+            confirmLoading={saveMutation.isPending}
+          >
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={onFinish}
+              initialValues={{ debtType: "RECEIVABLE" }}
             >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Tạo mới
-            </button>
-          </div>
-        </form>
-      </Modal>
+              <Form.Item
+                name="debtCode"
+                label="Mã công nợ"
+                rules={[{ required: true }]}
+              >
+                <Input />
+              </Form.Item>
+
+              <Form.Item
+                name="debtType"
+                label="Loại công nợ"
+                rules={[{ required: true }]}
+              >
+                <Select
+                  onChange={() =>
+                    form.setFieldsValue({
+                      customerId: undefined,
+                      supplierId: undefined,
+                    })
+                  }
+                >
+                  <Select.Option value="RECEIVABLE">
+                    Phải thu (Khách hàng)
+                  </Select.Option>
+                  <Select.Option value="PAYABLE">
+                    Phải trả (Nhà cung cấp)
+                  </Select.Option>
+                </Select>
+              </Form.Item>
+
+              {debtType === "RECEIVABLE" && (
+                <Form.Item
+                  name="customerId"
+                  label="Khách hàng"
+                  rules={[{ required: true }]}
+                >
+                  <Select placeholder="-- Chọn khách hàng --">
+                    {customers.map((c) => (
+                      <Select.Option key={c.id} value={c.id}>
+                        {c.customerName} ({c.customerCode})
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              )}
+
+              {debtType === "PAYABLE" && (
+                <Form.Item
+                  name="supplierId"
+                  label="Nhà cung cấp"
+                  rules={[{ required: true }]}
+                >
+                  <Select placeholder="-- Chọn nhà cung cấp --">
+                    {suppliers.map((s) => (
+                      <Select.Option key={s.id} value={s.id}>
+                        {s.supplierName} ({s.supplierCode})
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              )}
+
+              <Form.Item
+                name="originalAmount"
+                label="Số tiền"
+                rules={[{ required: true }]}
+              >
+                <InputNumber style={{ width: "100%" }} min={0} step={0.01} />
+              </Form.Item>
+
+              <Form.Item name="dueDate" label="Hạn thanh toán">
+                <Input type="date" />
+              </Form.Item>
+
+              <Form.Item name="notes" label="Ghi chú">
+                <Input.TextArea rows={3} />
+              </Form.Item>
+            </Form>
+          </Modal>
         </div>
       </WrapperContent>
     </>

@@ -260,6 +260,7 @@ export default function ImportWarehousePage() {
   return (
     <>
       <WrapperContent<ImportTransaction>
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["inventory", "import", warehouseId],
