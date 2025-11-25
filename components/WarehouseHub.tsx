@@ -114,7 +114,7 @@ export default function WarehousesHub({ path }: { path: string }) {
   return (
     <>
       <WrapperContent<Warehouse>
-        isNotAccessible={!can("admin.warehouses", "view")}
+        isNotAccessible={!can("inventory.balance", "view")}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["warehouses"],

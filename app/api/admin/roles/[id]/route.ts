@@ -18,7 +18,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { roleCode, roleName, description } = body;
+    const { roleCode, roleName, description, level } = body;
 
     if (!roleCode || !roleName) {
       return NextResponse.json<ApiResponse>({
@@ -40,13 +40,23 @@ export async function PUT(
       }, { status: 400 });
     }
 
+    const roleLevel = level || 3;
+
     // Cập nhật role
     await query(
       `UPDATE roles 
-       SET role_code = $1, role_name = $2, description = $3
-       WHERE id = $4`,
-      [roleCode, roleName, description || null, id]
+       SET role_code = $1, role_name = $2, description = $3, level = $4
+       WHERE id = $5`,
+      [roleCode, roleName, description || null, roleLevel, id]
     );
+
+    // Nếu level thay đổi, tự động cập nhật quyền
+    if (level) {
+      await query(
+        `SELECT auto_assign_permissions_by_level($1, $2)`,
+        [parseInt(id), roleLevel]
+      );
+    }
 
     return NextResponse.json<ApiResponse>({
       success: true,

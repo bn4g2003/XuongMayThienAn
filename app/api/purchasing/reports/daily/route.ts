@@ -1,11 +1,30 @@
 import { query } from '@/lib/db';
+import { requirePermission } from '@/lib/permissions';
+import { ApiResponse } from '@/types';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
+    const { hasPermission, user: currentUser, error } = await requirePermission('purchasing.orders', 'view');
+    if (!hasPermission) {
+      return NextResponse.json<ApiResponse>({
+        success: false,
+        error: error || 'Không có quyền xem báo cáo'
+      }, { status: 403 });
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get('startDate') || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
     const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0];
+
+    // Data segregation
+    let branchFilter = '';
+    let params: any[] = [startDate, endDate];
+    
+    if (currentUser.roleCode !== 'ADMIN' && currentUser.branchId) {
+      branchFilter = ' AND branch_id = $3';
+      params.push(currentUser.branchId);
+    }
 
     const result = await query(`
       SELECT 
@@ -15,9 +34,10 @@ export async function GET(request: NextRequest) {
       FROM purchase_orders
       WHERE order_date::date BETWEEN $1::date AND $2::date
         AND status != 'CANCELLED'
+        ${branchFilter}
       GROUP BY TO_CHAR(order_date, 'YYYY-MM-DD')
       ORDER BY date
-    `, [startDate, endDate]);
+    `, params);
 
     const dailyData = result.rows.map((row: any) => ({
       date: row.date,

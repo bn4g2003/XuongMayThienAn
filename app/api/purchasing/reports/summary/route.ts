@@ -1,11 +1,30 @@
 import { query } from '@/lib/db';
+import { requirePermission } from '@/lib/permissions';
+import { ApiResponse } from '@/types';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
+    const { hasPermission, user: currentUser, error } = await requirePermission('purchasing.orders', 'view');
+    if (!hasPermission) {
+      return NextResponse.json<ApiResponse>({
+        success: false,
+        error: error || 'Không có quyền xem báo cáo'
+      }, { status: 403 });
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get('startDate') || new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
     const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0];
+
+    // Data segregation
+    let branchFilter = '';
+    let params: any[] = [startDate, endDate];
+    
+    if (currentUser.roleCode !== 'ADMIN' && currentUser.branchId) {
+      branchFilter = ' AND po.branch_id = $3';
+      params.push(currentUser.branchId);
+    }
 
     // Tổng quan đơn mua
     const ordersResult = await query(`
@@ -18,9 +37,10 @@ export async function GET(request: NextRequest) {
         COUNT(CASE WHEN status = 'APPROVED' THEN 1 END) as approved_orders,
         COUNT(CASE WHEN status = 'PENDING' THEN 1 END) as pending_orders,
         COUNT(CASE WHEN status = 'CANCELLED' THEN 1 END) as cancelled_orders
-      FROM purchase_orders
-      WHERE order_date::date BETWEEN $1::date AND $2::date
-    `, [startDate, endDate]);
+      FROM purchase_orders po
+      WHERE po.order_date::date BETWEEN $1::date AND $2::date
+      ${branchFilter}
+    `, params);
 
     // Top nhà cung cấp
     const topSuppliersResult = await query(`
@@ -34,10 +54,11 @@ export async function GET(request: NextRequest) {
       JOIN purchase_orders po ON po.supplier_id = s.id
       WHERE po.order_date::date BETWEEN $1::date AND $2::date
         AND po.status != 'CANCELLED'
+        ${branchFilter}
       GROUP BY s.id, s.supplier_code, s.supplier_name
       ORDER BY COALESCE(SUM(po.total_amount), 0) DESC
       LIMIT 10
-    `, [startDate, endDate]);
+    `, params);
 
     // Top sản phẩm/nguyên liệu mua nhiều
     const topProductsResult = await query(`
@@ -53,10 +74,11 @@ export async function GET(request: NextRequest) {
       JOIN purchase_orders po ON po.id = pod.purchase_order_id
       WHERE po.order_date::date BETWEEN $1::date AND $2::date
         AND po.status != 'CANCELLED'
+        ${branchFilter}
       GROUP BY m.id, pod.item_code, pod.item_name, pod.unit
       ORDER BY COALESCE(SUM(pod.quantity), 0) DESC
       LIMIT 10
-    `, [startDate, endDate]);
+    `, params);
 
     const summary = {
       totalOrders: parseInt(ordersResult.rows[0]?.total_orders || '0'),
