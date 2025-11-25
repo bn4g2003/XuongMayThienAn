@@ -222,9 +222,9 @@ export default function RolesPage() {
           },
         ];
         // Chỉ cho edit nếu có quyền VÀ (là ADMIN hoặc role level <= 3)
-        const canEditThisRole = can("admin.roles", "edit") && 
+        const canEditThisRole = can("admin.roles", "edit") &&
           (isAdmin || record.level <= 3);
-        
+
         if (canEditThisRole)
           menuItems.push({
             key: "edit",
@@ -276,7 +276,6 @@ export default function RolesPage() {
                   name: "Xuất Excel",
                   onClick: () => {},
                   icon: <DownloadOutlined />,
-                  isLoading: true,
                 },
                 {
                   type: "default",
@@ -423,7 +422,7 @@ function RoleForm({
       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
         <p className="font-medium text-blue-900 mb-1">💡 Quyền tự động</p>
         <p className="text-blue-700">
-          Khi tạo/sửa role, hệ thống sẽ tự động cấp quyền theo cấp độ đã chọn. 
+          Khi tạo/sửa role, hệ thống sẽ tự động cấp quyền theo cấp độ đã chọn.
           Bạn có thể tinh chỉnh thêm ở trang "Phân quyền".
         </p>
         {!isAdmin && (

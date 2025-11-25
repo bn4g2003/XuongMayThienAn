@@ -80,10 +80,10 @@ export const AppThemeProvider = ({
   }, [mode, themeName]);
 
   const baseThemeTokens = getThemeTokens(themeName, mode);
-  // Default to 'middle' on the server to keep SSR output stable.
+  // Default to 'small' on the server to keep SSR output stable.
   // Update the real size on the client after mount to the appropriate value.
-  const [componentSize, setComponentSize] = useState<"middle" | "large">(
-    "middle"
+  const [componentSize, setComponentSize] = useState<"small" | "middle">(
+    "small"
   );
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export const AppThemeProvider = ({
 
     const calc = () => {
       const w = typeof window !== "undefined" ? window.innerWidth : 0;
-      setComponentSize(w <= MD_WIDTH ? "middle" : "large");
+      setComponentSize(w <= MD_WIDTH ? "small" : "middle");
     };
 
     calc();
