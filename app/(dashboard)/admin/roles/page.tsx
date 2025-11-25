@@ -47,7 +47,7 @@ type RoleFormValues = {
 };
 
 export default function RolesPage() {
-  const { can } = usePermissions();
+  const { can, isAdmin } = usePermissions();
   const { reset, applyFilter, updateQueries, query } = useFilter();
   const queryClient = useQueryClient();
 
@@ -125,6 +125,14 @@ export default function RolesPage() {
   };
 
   const handleEdit = (row: Role) => {
+    // Nếu không phải ADMIN, không cho edit role level 4-5
+    if (!isAdmin && row.level > 3) {
+      modal.warning({
+        title: "Không có quyền",
+        content: "Chỉ Admin mới có thể chỉnh sửa vai trò cấp cao (Level 4-5)",
+      });
+      return;
+    }
     setModalMode("edit");
     setSelected(row);
     setModalOpen(true);
@@ -213,7 +221,11 @@ export default function RolesPage() {
             onClick: () => handleView(record),
           },
         ];
-        if (can("admin.roles", "edit"))
+        // Chỉ cho edit nếu có quyền VÀ (là ADMIN hoặc role level <= 3)
+        const canEditThisRole = can("admin.roles", "edit") && 
+          (isAdmin || record.level <= 3);
+        
+        if (canEditThisRole)
           menuItems.push({
             key: "edit",
             label: "Sửa",
@@ -364,6 +376,7 @@ function RoleForm({
   loading?: boolean;
 }) {
   const [form] = Form.useForm<RoleFormValues>();
+  const { isAdmin } = usePermissions();
 
   return (
     <Form
@@ -399,8 +412,12 @@ function RoleForm({
           <option value={1}>Level 1 - Nhân viên cơ bản (Chỉ xem)</option>
           <option value={2}>Level 2 - Nhân viên (Xem + Tạo)</option>
           <option value={3}>Level 3 - Trưởng nhóm (Xem + Tạo + Sửa)</option>
-          <option value={4}>Level 4 - Quản lý (Xem + Tạo + Sửa + Xóa)</option>
-          <option value={5}>Level 5 - Giám đốc (Full quyền)</option>
+          {isAdmin && (
+            <>
+              <option value={4}>Level 4 - Quản lý (Xem + Tạo + Sửa + Xóa)</option>
+              <option value={5}>Level 5 - Giám đốc (Full quyền)</option>
+            </>
+          )}
         </select>
       </Form.Item>
       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
@@ -409,6 +426,11 @@ function RoleForm({
           Khi tạo/sửa role, hệ thống sẽ tự động cấp quyền theo cấp độ đã chọn. 
           Bạn có thể tinh chỉnh thêm ở trang "Phân quyền".
         </p>
+        {!isAdmin && (
+          <p className="text-orange-600 mt-2">
+            ⚠️ Bạn chỉ có thể tạo/sửa vai trò Level 1-3. Liên hệ Admin để tạo vai trò cấp cao hơn.
+          </p>
+        )}
       </div>
       <div className="flex gap-2 justify-end">
         <Button onClick={onCancel}>Hủy</Button>
