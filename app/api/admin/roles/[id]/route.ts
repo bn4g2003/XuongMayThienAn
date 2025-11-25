@@ -1,7 +1,66 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { requirePermission } from '@/lib/permissions';
 import { ApiResponse } from '@/types';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { hasPermission, error } = await requirePermission('admin.roles', 'edit');
+    if (!hasPermission) {
+      return NextResponse.json<ApiResponse>({
+        success: false,
+        error: error || 'Không có quyền sửa vai trò'
+      }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const { roleCode, roleName, description } = body;
+
+    if (!roleCode || !roleName) {
+      return NextResponse.json<ApiResponse>({
+        success: false,
+        error: 'Vui lòng điền đầy đủ thông tin'
+      }, { status: 400 });
+    }
+
+    // Kiểm tra roleCode đã tồn tại chưa (trừ role hiện tại)
+    const checkCode = await query(
+      'SELECT id FROM roles WHERE role_code = $1 AND id != $2',
+      [roleCode, id]
+    );
+
+    if (checkCode.rows.length > 0) {
+      return NextResponse.json<ApiResponse>({
+        success: false,
+        error: 'Mã vai trò đã tồn tại'
+      }, { status: 400 });
+    }
+
+    // Cập nhật role
+    await query(
+      `UPDATE roles 
+       SET role_code = $1, role_name = $2, description = $3
+       WHERE id = $4`,
+      [roleCode, roleName, description || null, id]
+    );
+
+    return NextResponse.json<ApiResponse>({
+      success: true,
+      message: 'Cập nhật vai trò thành công'
+    });
+
+  } catch (error) {
+    console.error('Update role error:', error);
+    return NextResponse.json<ApiResponse>({
+      success: false,
+      error: 'Lỗi server'
+    }, { status: 500 });
+  }
+}
 
 export async function DELETE(
   request: NextRequest,

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { usePermissions } from '@/hooks/usePermissions';
 import WrapperContent from '@/components/WrapperContent';
-import { PlusOutlined, DownloadOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { usePermissions } from '@/hooks/usePermissions';
+import { DownloadOutlined, PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { useEffect, useState } from 'react';
 
 interface Order {
   id: number;
@@ -38,6 +38,7 @@ export default function OrdersPage() {
   const [showMaterialSuggestion, setShowMaterialSuggestion] = useState(false);
   const [materialSuggestion, setMaterialSuggestion] = useState<any>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState('');
+  const [displayMaterials, setDisplayMaterials] = useState<any[]>([]);
   const [filterQueries, setFilterQueries] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -313,6 +314,8 @@ export default function OrdersPage() {
         console.log('Warehouses:', data.data.warehouses);
         console.log('Materials:', data.data.materials);
         setMaterialSuggestion(data.data);
+        setDisplayMaterials(data.data.materials || []);
+        setSelectedWarehouse('');
         setShowMaterialSuggestion(true);
       } else {
         alert(data.error || 'Có lỗi xảy ra');
@@ -323,32 +326,101 @@ export default function OrdersPage() {
     }
   };
 
-  const createImportSuggestion = () => {
+  // Tính toán lại tồn kho và cần nhập khi chọn kho
+  useEffect(() => {
+    if (!materialSuggestion || !materialSuggestion.materials) return;
+
     if (!selectedWarehouse) {
-      alert('Vui lòng chọn kho nhập');
+      // Không chọn kho -> hiển thị tổng tồn kho
+      setDisplayMaterials(materialSuggestion.materials);
+    } else {
+      // Đã chọn kho -> tính toán lại dựa trên tồn kho của kho đó
+      const warehouseId = parseInt(selectedWarehouse);
+      const updatedMaterials = materialSuggestion.materials.map((m: any) => {
+        const stockInWarehouse = m.stockByWarehouse?.[warehouseId] || 0;
+        const needToImport = Math.max(0, m.totalNeeded - stockInWarehouse);
+        return {
+          ...m,
+          currentStock: stockInWarehouse,
+          needToImport: needToImport
+        };
+      });
+      setDisplayMaterials(updatedMaterials);
+    }
+  }, [selectedWarehouse, materialSuggestion]);
+
+  const createExportSuggestion = async () => {
+    if (!selectedWarehouse) {
+      alert('Vui lòng chọn kho xuất');
       return;
     }
 
-    const materialsToImport = materialSuggestion.materials.filter((m: any) => m.needToImport > 0);
+    const materialsToExport = displayMaterials.filter((m: any) => m.totalNeeded > 0);
     
-    if (materialsToImport.length === 0) {
-      alert('Không có nguyên liệu nào cần nhập');
+    if (materialsToExport.length === 0) {
+      alert('Không có nguyên liệu nào cần xuất');
       return;
     }
 
-    // Chuyển đến trang tạo phiếu nhập với dữ liệu gợi ý
-    const suggestionData = {
-      warehouseId: selectedWarehouse,
-      materials: materialsToImport.map((m: any) => ({
-        materialId: m.materialId,
-        materialName: m.materialName,
-        quantity: m.needToImport,
-        unit: m.unit
-      }))
-    };
+    // Kiểm tra tồn kho đủ không
+    const insufficientMaterials = materialsToExport.filter((m: any) => m.currentStock < m.totalNeeded);
+    
+    if (insufficientMaterials.length > 0) {
+      const confirmMsg = `⚠️ Có ${insufficientMaterials.length} nguyên liệu không đủ tồn kho:\n\n` +
+        insufficientMaterials.map((m: any) => 
+          `- ${m.materialName}: Cần ${m.totalNeeded.toFixed(2)} ${m.unit}, Tồn ${m.currentStock.toFixed(2)} ${m.unit}`
+        ).join('\n') +
+        `\n\nBạn có muốn tiếp tục tạo phiếu xuất không?`;
+      
+      if (!confirm(confirmMsg)) return;
+    }
 
-    localStorage.setItem('importSuggestion', JSON.stringify(suggestionData));
-    window.location.href = '/inventory?tab=import';
+    // Tạo phiếu xuất trực tiếp
+    const confirmed = confirm(
+      `Bạn có chắc muốn tạo phiếu xuất cho ${materialsToExport.length} nguyên liệu?\n\n` +
+      materialsToExport.map((m: any) => 
+        `- ${m.materialName}: ${m.totalNeeded.toFixed(2)} ${m.unit}`
+      ).join('\n')
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setSubmitting(true);
+      
+      const exportData = {
+        fromWarehouseId: parseInt(selectedWarehouse),
+        notes: `Phiếu xuất NVL cho đơn hàng ${selectedOrder?.orderCode || ''}`,
+        items: materialsToExport.map((m: any) => ({
+          materialId: m.materialId,
+          quantity: m.totalNeeded,
+          notes: `Xuất cho: ${m.products.map((p: any) => `${p.productName} (${p.quantity} sp × ${p.materialPerProduct} ${m.unit})`).join(', ')}`
+        }))
+      };
+
+      const res = await fetch('/api/inventory/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(exportData)
+      });
+
+      const data = await res.json();
+      
+      if (data.success) {
+        alert(`✅ Đã tạo phiếu xuất thành công!\nMã phiếu: ${data.data.transactionCode}`);
+        setShowMaterialSuggestion(false);
+        setSelectedWarehouse('');
+        // Chuyển đến trang chi tiết phiếu xuất
+        window.location.href = `/inventory/export/${data.data.id}`;
+      } else {
+        alert(data.error || 'Có lỗi xảy ra khi tạo phiếu xuất');
+      }
+    } catch (error) {
+      console.error('Create export error:', error);
+      alert('Có lỗi xảy ra khi tạo phiếu xuất');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Apply filters
@@ -952,70 +1024,112 @@ export default function OrdersPage() {
         <div className="fixed inset-0 bg-gray-500/20 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Gợi ý nhập nguyên liệu</h2>
+              <h2 className="text-xl font-bold">📦 Xuất nguyên liệu cho sản xuất</h2>
               <button onClick={() => setShowMaterialSuggestion(false)} className="text-2xl text-gray-400 hover:text-gray-600">×</button>
             </div>
 
-            <div className="mb-4 p-3 bg-blue-50 rounded text-sm">
-              <p className="font-medium mb-1">📊 Phân tích nhu cầu nguyên liệu</p>
-              <p className="text-gray-600">Dựa trên BOM của sản phẩm và tồn kho hiện tại</p>
+            <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg">
+              <p className="font-semibold mb-2 text-blue-900 flex items-center gap-2">
+                <span className="text-xl">📊</span>
+                <span>Phân tích nhu cầu nguyên liệu cho sản xuất</span>
+              </p>
+              <p className="text-gray-700 text-sm mb-3">Dựa trên BOM của sản phẩm trong đơn hàng và tồn kho hiện tại</p>
+              
+              <div className="grid grid-cols-3 gap-3 mt-3">
+                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                  <div className="text-xs text-gray-600 mb-1">Tổng NVL</div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {displayMaterials.length || 0}
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-green-200">
+                  <div className="text-xs text-gray-600 mb-1">Đủ nguyên liệu</div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {displayMaterials.filter((m: any) => m.needToImport === 0).length || 0}
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-orange-200">
+                  <div className="text-xs text-gray-600 mb-1">Thiếu NVL</div>
+                  <div className="text-2xl font-bold text-orange-600">
+                    {displayMaterials.filter((m: any) => m.currentStock < m.totalNeeded).length || 0}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {materialSuggestion.warehouses && materialSuggestion.warehouses.length > 0 ? (
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Chọn kho nhập:</label>
+              <div className="mb-4 p-4 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg">
+                <label className="block text-sm font-medium mb-2 text-orange-900">
+                  🏭 Chọn kho xuất nguyên liệu (chỉ kho NVL):
+                </label>
                 <select
                   value={selectedWarehouse}
                   onChange={(e) => setSelectedWarehouse(e.target.value)}
-                  className="w-full px-3 py-2 border rounded"
+                  className="w-full px-4 py-2 border-2 border-orange-300 rounded-lg focus:border-orange-500 focus:outline-none"
                 >
-                  <option value="">-- Chọn kho --</option>
+                  <option value="">-- Chọn kho (hiển thị tổng tồn kho) --</option>
                   {materialSuggestion.warehouses.map((w: any) => (
                     <option key={w.id} value={w.id}>
                       {w.warehouseName} ({w.warehouseCode})
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-orange-700 mt-2">
+                  {selectedWarehouse ? (
+                    <>💡 Đang hiển thị tồn kho của kho đã chọn. Phiếu xuất sẽ được tạo từ kho này.</>
+                  ) : (
+                    <>💡 Chọn kho để xem tồn kho cụ thể và tạo phiếu xuất</>
+                  )}
+                </p>
               </div>
             ) : (
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                <p className="font-medium text-yellow-800">⚠️ Chưa có kho nào</p>
-                <p className="text-yellow-700 mt-1">Vui lòng tạo kho trong mục "Quản lý kho" trước khi sử dụng tính năng này.</p>
+              <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                <p className="font-medium text-yellow-800 flex items-center gap-2">
+                  <span className="text-2xl">⚠️</span>
+                  <span>Chưa có kho nguyên vật liệu nào</span>
+                </p>
+                <p className="text-yellow-700 mt-2">
+                  Vui lòng tạo kho loại "NVL" trong mục <strong>"Quản trị → Kho hàng"</strong> trước khi sử dụng tính năng này.
+                </p>
               </div>
             )}
 
-            <div className="border rounded overflow-hidden">
+            <div className="border-2 border-gray-200 rounded-lg overflow-hidden shadow-sm">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50">
+                <thead className="bg-gradient-to-r from-gray-100 to-gray-200">
                   <tr>
-                    <th className="px-3 py-2 text-left">Mã NVL</th>
-                    <th className="px-3 py-2 text-left">Tên nguyên liệu</th>
-                    <th className="px-3 py-2 text-right">Cần dùng</th>
-                    <th className="px-3 py-2 text-right">Tồn kho</th>
-                    <th className="px-3 py-2 text-right">Cần nhập</th>
-                    <th className="px-3 py-2 text-left">Chi tiết</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Mã NVL</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Tên nguyên liệu</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">Cần xuất</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">Tồn kho</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">Trạng thái</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Chi tiết</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
-                  {materialSuggestion.materials?.map((material: any, idx: number) => (
-                    <tr key={idx} className={material.needToImport > 0 ? 'bg-red-50' : ''}>
-                      <td className="px-3 py-2 font-mono">{material.materialCode}</td>
-                      <td className="px-3 py-2">{material.materialName}</td>
-                      <td className="px-3 py-2 text-right font-semibold">
+                <tbody className="divide-y divide-gray-200">
+                  {displayMaterials.map((material: any, idx: number) => {
+                    const isInsufficient = material.currentStock < material.totalNeeded;
+                    return (
+                    <tr key={idx} className={isInsufficient ? 'bg-orange-50 hover:bg-orange-100' : 'hover:bg-gray-50'}>
+                      <td className="px-4 py-3 font-mono text-gray-700">{material.materialCode}</td>
+                      <td className="px-4 py-3 font-medium">{material.materialName}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-blue-600">
                         {material.totalNeeded.toFixed(2)} {material.unit}
                       </td>
-                      <td className="px-3 py-2 text-right">
-                        <span className={material.currentStock >= material.totalNeeded ? 'text-green-600' : 'text-orange-600'}>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`font-semibold ${material.currentStock >= material.totalNeeded ? 'text-green-600' : 'text-orange-600'}`}>
                           {material.currentStock.toFixed(2)} {material.unit}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-right">
-                        {material.needToImport > 0 ? (
-                          <span className="font-bold text-red-600">
-                            {material.needToImport.toFixed(2)} {material.unit}
+                      <td className="px-4 py-3 text-right">
+                        {isInsufficient ? (
+                          <span className="inline-block px-3 py-1 bg-orange-100 border border-orange-300 rounded-full font-bold text-orange-700">
+                            ⚠️ Thiếu {(material.totalNeeded - material.currentStock).toFixed(2)} {material.unit}
                           </span>
                         ) : (
-                          <span className="text-green-600">✓ Đủ</span>
+                          <span className="inline-block px-3 py-1 bg-green-100 border border-green-300 rounded-full font-semibold text-green-700">
+                            ✓ Đủ
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2">
@@ -1031,7 +1145,8 @@ export default function OrdersPage() {
                         </details>
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1045,11 +1160,11 @@ export default function OrdersPage() {
               </button>
               {materialSuggestion.warehouses && materialSuggestion.warehouses.length > 0 && (
                 <button
-                  onClick={createImportSuggestion}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                  disabled={!selectedWarehouse}
+                  onClick={createExportSuggestion}
+                  className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+                  disabled={!selectedWarehouse || submitting}
                 >
-                  📋 Tạo phiếu nhập từ gợi ý
+                  {submitting ? '⏳ Đang tạo phiếu...' : '� Tạo pphiếu xuất NVL'}
                 </button>
               )}
             </div>
