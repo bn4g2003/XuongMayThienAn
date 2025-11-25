@@ -2,6 +2,7 @@
 
 import WrapperContent from '@/components/WrapperContent';
 import { usePermissions } from '@/hooks/usePermissions';
+import { formatCurrency } from '@/utils/formatCurrency';
 import { DownloadOutlined, PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 
@@ -561,7 +562,7 @@ export default function OrdersPage() {
                         <td className="px-4 py-3 font-mono">{order.orderCode}</td>
                         <td className="px-4 py-3">{order.customerName}</td>
                         <td className="px-4 py-3">{new Date(order.orderDate).toLocaleDateString('vi-VN')}</td>
-                        <td className="px-4 py-3 text-right font-semibold">{order.finalAmount.toLocaleString()} đ</td>
+                        <td className="px-4 py-3 text-right font-semibold">{formatCurrency(order.finalAmount)} đ</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded text-xs ${
                             order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
@@ -768,19 +769,19 @@ export default function OrdersPage() {
                       <td className="px-3 py-2">{idx + 1}</td>
                       <td className="px-3 py-2">{item.productName}</td>
                       <td className="px-3 py-2 text-right">{item.quantity}</td>
-                      <td className="px-3 py-2 text-right">{item.unitPrice.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right font-semibold">{item.totalAmount.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(item.unitPrice)}</td>
+                      <td className="px-3 py-2 text-right font-semibold">{formatCurrency(item.totalAmount)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               <div className="mt-4 space-y-2 text-right">
-                <div>Tổng tiền: <span className="font-semibold">{selectedOrder.totalAmount.toLocaleString()} đ</span></div>
+                <div>Tổng tiền: <span className="font-semibold">{formatCurrency(selectedOrder.totalAmount)} đ</span></div>
                 {selectedOrder.discountAmount > 0 && (
-                  <div className="text-red-600">Giảm giá: -{selectedOrder.discountAmount.toLocaleString()} đ</div>
+                  <div className="text-red-600">Giảm giá: -{formatCurrency(selectedOrder.discountAmount)} đ</div>
                 )}
                 <div className="text-lg font-bold text-blue-600">
-                  Thành tiền: {selectedOrder.finalAmount.toLocaleString()} đ
+                  Thành tiền: {formatCurrency(selectedOrder.finalAmount)} đ
                 </div>
               </div>
             </div>
@@ -937,7 +938,7 @@ export default function OrdersPage() {
                               </select>
                             </td>
                             <td className="px-2 py-2 text-right text-gray-500 text-xs">
-                              {item.costPrice > 0 ? item.costPrice.toLocaleString() : '-'}
+                              {item.costPrice > 0 ? formatCurrency(item.costPrice) : '-'}
                             </td>
                             <td className="px-2 py-2">
                               <input
@@ -960,7 +961,7 @@ export default function OrdersPage() {
                               />
                             </td>
                             <td className="px-2 py-2 text-right font-semibold">
-                              {item.totalAmount.toLocaleString()}
+                              {formatCurrency(item.totalAmount)}
                             </td>
                             <td className="px-2 py-2">
                               <input
@@ -992,7 +993,7 @@ export default function OrdersPage() {
                 <div className="flex justify-between items-center text-lg">
                   <span className="font-medium">Tổng tiền:</span>
                   <span className="font-bold text-blue-600 text-xl">
-                    {calculateTotal().toLocaleString()} đ
+                    {formatCurrency(calculateTotal())} đ
                   </span>
                 </div>
               </div>

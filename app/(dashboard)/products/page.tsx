@@ -22,6 +22,7 @@ import type {
   Product,
   UpdateProductDto,
 } from "@/services/productService";
+import { formatCurrency } from "@/utils/formatCurrency";
 import {
   CheckCircleOutlined,
   DeleteOutlined,
@@ -136,7 +137,7 @@ export default function ProductsPage() {
       dataIndex: "costPrice",
       key: "costPrice",
       width: 120,
-      render: (value) => (value ? `${value.toLocaleString("vi-VN")}đ` : "-"),
+      render: (value) => (value ? `${formatCurrency(value)} đ` : "-"),
     },
     {
       title: "Trạng thái",

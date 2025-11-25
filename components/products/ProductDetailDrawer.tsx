@@ -1,15 +1,15 @@
 "use client";
 
-import React from "react";
-import { Drawer, Descriptions, Tag, Space, Button } from "antd";
+import { useProductBOM } from "@/hooks/useProductQuery";
+import type { BOMItem, Product } from "@/services/productService";
+import { formatCurrency } from "@/utils/formatCurrency";
 import {
-  EditOutlined,
-  DeleteOutlined,
   CheckCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
   StopOutlined,
 } from "@ant-design/icons";
-import type { Product, BOMItem } from "@/services/productService";
-import { useProductBOM } from "@/hooks/useProductQuery";
+import { Button, Descriptions, Drawer, Space, Tag } from "antd";
 
 type Props = {
   open: boolean;
@@ -55,7 +55,7 @@ export default function ProductDetailDrawer({
             <Descriptions.Item label="Đơn vị">{product.unit}</Descriptions.Item>
             <Descriptions.Item label="Giá vốn">
               {product.costPrice
-                ? `${product.costPrice.toLocaleString("vi-VN")}đ`
+                ? `${formatCurrency(product.costPrice)} đ`
                 : "-"}
             </Descriptions.Item>
             <Descriptions.Item label="Mô tả">
