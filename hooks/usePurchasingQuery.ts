@@ -1,13 +1,13 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { message } from "antd";
 import {
-  supplierService,
   purchaseOrderService,
-  type CreateSupplierDto,
-  type UpdateSupplierDto,
+  supplierService,
   type CreatePurchaseOrderDto,
+  type CreateSupplierDto,
   type UpdatePurchaseOrderDto,
+  type UpdateSupplierDto,
 } from "@/services/purchasingService";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { App, message } from "antd";
 
 // Query Keys
 export const SUPPLIER_KEYS = {
@@ -42,6 +42,7 @@ export function useSupplier(id: number) {
 
 export function useCreateSupplier() {
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   return useMutation({
     mutationFn: (data: CreateSupplierDto) => supplierService.create(data),

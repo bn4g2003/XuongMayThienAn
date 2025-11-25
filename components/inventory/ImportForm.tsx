@@ -2,7 +2,16 @@
 
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Form, Input, InputNumber, Select, Space, Table, message } from "antd";
+import {
+  App,
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Space,
+  Table,
+} from "antd";
 import { useState } from "react";
 
 type ImportFormProps = {
@@ -23,10 +32,15 @@ type ImportItem = {
   totalAmount: number;
 };
 
-export default function ImportForm({ warehouseId, onSuccess, onCancel }: ImportFormProps) {
+export default function ImportForm({
+  warehouseId,
+  onSuccess,
+  onCancel,
+}: ImportFormProps) {
   const [form] = Form.useForm();
   const [items, setItems] = useState<ImportItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const { message } = App.useApp();
 
   // Lấy thông tin kho
   const { data: warehouse } = useQuery({
@@ -45,11 +59,15 @@ export default function ImportForm({ warehouseId, onSuccess, onCancel }: ImportF
     enabled: !!warehouse,
     queryFn: async () => {
       if (warehouse.warehouseType === "NVL") {
-        const res = await fetch(`/api/inventory/materials?warehouseId=${warehouseId}`);
+        const res = await fetch(
+          `/api/inventory/materials?warehouseId=${warehouseId}`
+        );
         const body = await res.json();
         return body.success ? body.data : [];
       } else {
-        const res = await fetch(`/api/inventory/products?warehouseId=${warehouseId}`);
+        const res = await fetch(
+          `/api/inventory/products?warehouseId=${warehouseId}`
+        );
         const body = await res.json();
         return body.success ? body.data : [];
       }
@@ -66,16 +84,20 @@ export default function ImportForm({ warehouseId, onSuccess, onCancel }: ImportF
       return;
     }
 
-    const selectedItem = availableItems.find((item: any) => 
-      warehouse.warehouseType === "NVL" ? item.id === selectedItemId : item.id === selectedItemId
+    const selectedItem = availableItems.find((item: any) =>
+      warehouse.warehouseType === "NVL"
+        ? item.id === selectedItemId
+        : item.id === selectedItemId
     );
 
     if (!selectedItem) return;
 
     const newItem: ImportItem = {
       key: Date.now().toString(),
-      materialId: warehouse.warehouseType === "NVL" ? selectedItem.id : undefined,
-      productId: warehouse.warehouseType === "THANH_PHAM" ? selectedItem.id : undefined,
+      materialId:
+        warehouse.warehouseType === "NVL" ? selectedItem.id : undefined,
+      productId:
+        warehouse.warehouseType === "THANH_PHAM" ? selectedItem.id : undefined,
       itemCode: selectedItem.itemCode,
       itemName: selectedItem.itemName,
       quantity,
@@ -85,7 +107,11 @@ export default function ImportForm({ warehouseId, onSuccess, onCancel }: ImportF
     };
 
     setItems([...items, newItem]);
-    form.setFieldsValue({ selectedItem: undefined, quantity: undefined, unitPrice: undefined });
+    form.setFieldsValue({
+      selectedItem: undefined,
+      quantity: undefined,
+      unitPrice: undefined,
+    });
   };
 
   const handleRemoveItem = (key: string) => {
@@ -135,7 +161,13 @@ export default function ImportForm({ warehouseId, onSuccess, onCancel }: ImportF
   const columns = [
     { title: "Mã", dataIndex: "itemCode", key: "itemCode", width: 120 },
     { title: "Tên", dataIndex: "itemName", key: "itemName" },
-    { title: "Số lượng", dataIndex: "quantity", key: "quantity", width: 100, align: "right" as const },
+    {
+      title: "Số lượng",
+      dataIndex: "quantity",
+      key: "quantity",
+      width: 100,
+      align: "right" as const,
+    },
     { title: "ĐVT", dataIndex: "unit", key: "unit", width: 80 },
     {
       title: "Đơn giá",
@@ -158,7 +190,13 @@ export default function ImportForm({ warehouseId, onSuccess, onCancel }: ImportF
       key: "action",
       width: 80,
       render: (_: any, record: ImportItem) => (
-        <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleRemoveItem(record.key)} />
+        <Button
+          type="link"
+          danger
+          size="small"
+          icon={<DeleteOutlined />}
+          onClick={() => handleRemoveItem(record.key)}
+        />
       ),
     },
   ];
@@ -169,13 +207,19 @@ export default function ImportForm({ warehouseId, onSuccess, onCancel }: ImportF
     <div className="space-y-4">
       <Form form={form} layout="vertical">
         <div className="grid grid-cols-4 gap-4">
-          <Form.Item label="Hàng hóa" name="selectedItem" className="col-span-2">
+          <Form.Item
+            label="Hàng hóa"
+            name="selectedItem"
+            className="col-span-2"
+          >
             <Select
               showSearch
               placeholder="Chọn hàng hóa"
               optionFilterProp="label"
               filterOption={(input, option) =>
-                String(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                String(option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
               }
               options={availableItems.map((item: any) => ({
                 label: `${item.itemCode} - ${item.itemName}`,
@@ -184,13 +228,26 @@ export default function ImportForm({ warehouseId, onSuccess, onCancel }: ImportF
             />
           </Form.Item>
           <Form.Item label="Số lượng" name="quantity">
-            <InputNumber min={1} style={{ width: "100%" }} placeholder="Số lượng" />
+            <InputNumber
+              min={1}
+              style={{ width: "100%" }}
+              placeholder="Số lượng"
+            />
           </Form.Item>
           <Form.Item label="Đơn giá" name="unitPrice">
-            <InputNumber min={0} style={{ width: "100%" }} placeholder="Đơn giá" />
+            <InputNumber
+              min={0}
+              style={{ width: "100%" }}
+              placeholder="Đơn giá"
+            />
           </Form.Item>
         </div>
-        <Button type="dashed" icon={<PlusOutlined />} onClick={handleAddItem} block>
+        <Button
+          type="dashed"
+          icon={<PlusOutlined />}
+          onClick={handleAddItem}
+          block
+        >
           Thêm hàng hóa
         </Button>
       </Form>

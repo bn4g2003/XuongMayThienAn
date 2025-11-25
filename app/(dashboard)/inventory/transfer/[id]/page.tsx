@@ -13,7 +13,7 @@ import {
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
-import { App, Button, Descriptions, Drawer, Tag, message } from "antd";
+import { App, Button, Descriptions, Drawer, Tag } from "antd";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -42,7 +42,7 @@ export default function TransferWarehousePage() {
   const { can } = usePermissions();
   const { reset, applyFilter, updateQueries, query } = useFilter();
   const queryClient = useQueryClient();
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
 
   const {
     data: transfers = [],
@@ -52,7 +52,9 @@ export default function TransferWarehousePage() {
     queryKey: ["inventory", "transfer", warehouseId],
     enabled: !!warehouseId,
     queryFn: async () => {
-      const res = await fetch(`/api/inventory/transfer?warehouseId=${warehouseId}`);
+      const res = await fetch(
+        `/api/inventory/transfer?warehouseId=${warehouseId}`
+      );
       const body = await res.json();
       return body.success ? body.data : [];
     },
@@ -66,7 +68,9 @@ export default function TransferWarehousePage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory", "transfer", warehouseId] });
+      queryClient.invalidateQueries({
+        queryKey: ["inventory", "transfer", warehouseId],
+      });
     },
   });
 
@@ -105,7 +109,11 @@ export default function TransferWarehousePage() {
           APPROVED: "Đã duyệt",
           COMPLETED: "Hoàn thành",
         };
-        return <Tag color={colors[status as keyof typeof colors]}>{labels[status as keyof typeof labels]}</Tag>;
+        return (
+          <Tag color={colors[status as keyof typeof colors]}>
+            {labels[status as keyof typeof labels]}
+          </Tag>
+        );
       },
     },
     {
@@ -136,18 +144,29 @@ export default function TransferWarehousePage() {
       fixed: "right",
       render: (_: unknown, record: TransferTransaction) => (
         <div className="flex gap-2">
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleView(record)}>
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => handleView(record)}
+          >
             Xem
           </Button>
           {record.status === "PENDING" && can("inventory.transfer", "edit") && (
-            <Button type="link" size="small" onClick={() => handleApprove(record.id)}>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => handleApprove(record.id)}
+            >
               Duyệt
             </Button>
           )}
           <Button
             type="link"
             size="small"
-            onClick={() => window.open(`/api/inventory/transfer/${record.id}/pdf`, "_blank")}
+            onClick={() =>
+              window.open(`/api/inventory/transfer/${record.id}/pdf`, "_blank")
+            }
           >
             In
           </Button>
@@ -157,7 +176,8 @@ export default function TransferWarehousePage() {
   ];
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<TransferTransaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<TransferTransaction | null>(null);
 
   type TransactionDetail = {
     id: number;
@@ -174,7 +194,9 @@ export default function TransferWarehousePage() {
     queryKey: ["inventory", "transfer", "details", selectedTransaction?.id],
     enabled: !!selectedTransaction?.id,
     queryFn: async () => {
-      const res = await fetch(`/api/inventory/transfer/${selectedTransaction?.id}`);
+      const res = await fetch(
+        `/api/inventory/transfer/${selectedTransaction?.id}`
+      );
       const body = await res.json();
       return body.success ? body.data?.details || [] : [];
     },
@@ -195,7 +217,9 @@ export default function TransferWarehousePage() {
     onSuccess: (data) => {
       if (data.success) {
         message.success("Duyệt phiếu thành công");
-        queryClient.invalidateQueries({ queryKey: ["inventory", "transfer", warehouseId] });
+        queryClient.invalidateQueries({
+          queryKey: ["inventory", "transfer", warehouseId],
+        });
         setDrawerOpen(false);
       } else {
         message.error(data.error || "Có lỗi xảy ra");
@@ -213,7 +237,8 @@ export default function TransferWarehousePage() {
     });
   };
 
-  const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } = useColumn({ defaultColumns: columnsAll });
+  const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
+    useColumn({ defaultColumns: columnsAll });
 
   const handleExportExcel = () => {
     // TODO: Implement export to Excel functionality
@@ -235,7 +260,9 @@ export default function TransferWarehousePage() {
     return (
       <div className="p-6">
         <h3>Không tìm thấy warehouseId trong route.</h3>
-        <Button onClick={() => router.push("/inventory/transfer")}>Quay lại</Button>
+        <Button onClick={() => router.push("/inventory/transfer")}>
+          Quay lại
+        </Button>
       </div>
     );
   }
@@ -264,7 +291,8 @@ export default function TransferWarehousePage() {
                   {
                     type: "primary" as const,
                     name: "Tạo phiếu chuyển kho",
-                    onClick: () => router.push(`/inventory/transfer/${warehouseId}/create`),
+                    onClick: () =>
+                      router.push(`/inventory/transfer/${warehouseId}/create`),
                     icon: <PlusOutlined />,
                   },
                 ]
@@ -272,7 +300,12 @@ export default function TransferWarehousePage() {
           ],
           searchInput: {
             placeholder: "Tìm kiếm phiếu chuyển kho",
-            filterKeys: ["transactionCode", "fromWarehouseName", "toWarehouseName", "createdByName"],
+            filterKeys: [
+              "transactionCode",
+              "fromWarehouseName",
+              "toWarehouseName",
+              "createdByName",
+            ],
           },
           filters: {
             fields: [
@@ -319,35 +352,47 @@ export default function TransferWarehousePage() {
               <Descriptions.Item label="Mã phiếu" span={2}>
                 {selectedTransaction.transactionCode}
               </Descriptions.Item>
-              <Descriptions.Item label="Kho xuất">{selectedTransaction.fromWarehouseName}</Descriptions.Item>
-              <Descriptions.Item label="Kho nhập">{selectedTransaction.toWarehouseName}</Descriptions.Item>
+              <Descriptions.Item label="Kho xuất">
+                {selectedTransaction.fromWarehouseName}
+              </Descriptions.Item>
+              <Descriptions.Item label="Kho nhập">
+                {selectedTransaction.toWarehouseName}
+              </Descriptions.Item>
               <Descriptions.Item label="Trạng thái">
                 <Tag
                   color={
                     selectedTransaction.status === "PENDING"
                       ? "orange"
                       : selectedTransaction.status === "APPROVED"
-                        ? "blue"
-                        : "green"
+                      ? "blue"
+                      : "green"
                   }
                 >
                   {selectedTransaction.status === "PENDING"
                     ? "Chờ duyệt"
                     : selectedTransaction.status === "APPROVED"
-                      ? "Đã duyệt"
-                      : "Hoàn thành"}
+                    ? "Đã duyệt"
+                    : "Hoàn thành"}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Người tạo">{selectedTransaction.createdByName}</Descriptions.Item>
+              <Descriptions.Item label="Người tạo">
+                {selectedTransaction.createdByName}
+              </Descriptions.Item>
               <Descriptions.Item label="Ngày tạo">
-                {new Date(selectedTransaction.createdAt).toLocaleString("vi-VN")}
+                {new Date(selectedTransaction.createdAt).toLocaleString(
+                  "vi-VN"
+                )}
               </Descriptions.Item>
               {selectedTransaction.approvedByName && (
                 <>
-                  <Descriptions.Item label="Người duyệt">{selectedTransaction.approvedByName}</Descriptions.Item>
+                  <Descriptions.Item label="Người duyệt">
+                    {selectedTransaction.approvedByName}
+                  </Descriptions.Item>
                   <Descriptions.Item label="Ngày duyệt">
                     {selectedTransaction.approvedAt
-                      ? new Date(selectedTransaction.approvedAt).toLocaleString("vi-VN")
+                      ? new Date(selectedTransaction.approvedAt).toLocaleString(
+                          "vi-VN"
+                        )
                       : "-"}
                   </Descriptions.Item>
                 </>
@@ -357,17 +402,18 @@ export default function TransferWarehousePage() {
               </Descriptions.Item>
             </Descriptions>
 
-            {selectedTransaction.status === "PENDING" && can("inventory.transfer", "edit") && (
-              <div className="flex justify-end mt-4">
-                <Button
-                  type="primary"
-                  onClick={() => handleApprove(selectedTransaction.id)}
-                  loading={approveMutation.isPending}
-                >
-                  Duyệt phiếu
-                </Button>
-              </div>
-            )}
+            {selectedTransaction.status === "PENDING" &&
+              can("inventory.transfer", "edit") && (
+                <div className="flex justify-end mt-4">
+                  <Button
+                    type="primary"
+                    onClick={() => handleApprove(selectedTransaction.id)}
+                    loading={approveMutation.isPending}
+                  >
+                    Duyệt phiếu
+                  </Button>
+                </div>
+              )}
 
             <div>
               <h3 className="text-lg font-semibold mb-4">Chi tiết hàng hóa</h3>
@@ -385,11 +431,17 @@ export default function TransferWarehousePage() {
                 <tbody>
                   {transactionDetails.map((detail) => (
                     <tr key={detail.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 border font-mono text-sm">{detail.itemCode}</td>
+                      <td className="px-4 py-2 border font-mono text-sm">
+                        {detail.itemCode}
+                      </td>
                       <td className="px-4 py-2 border">{detail.itemName}</td>
-                      <td className="px-4 py-2 border text-right">{detail.quantity.toLocaleString()}</td>
+                      <td className="px-4 py-2 border text-right">
+                        {detail.quantity.toLocaleString()}
+                      </td>
                       <td className="px-4 py-2 border">{detail.unit}</td>
-                      <td className="px-4 py-2 border text-right">{detail.unitPrice?.toLocaleString() || "0"}</td>
+                      <td className="px-4 py-2 border text-right">
+                        {detail.unitPrice?.toLocaleString() || "0"}
+                      </td>
                       <td className="px-4 py-2 border text-right font-semibold">
                         {detail.totalAmount?.toLocaleString() || "0"}
                       </td>
@@ -402,7 +454,9 @@ export default function TransferWarehousePage() {
                       Tổng cộng:
                     </td>
                     <td className="px-4 py-2 border text-right">
-                      {transactionDetails.reduce((sum, d) => sum + (d.totalAmount || 0), 0).toLocaleString()}
+                      {transactionDetails
+                        .reduce((sum, d) => sum + (d.totalAmount || 0), 0)
+                        .toLocaleString()}
                     </td>
                   </tr>
                 </tfoot>

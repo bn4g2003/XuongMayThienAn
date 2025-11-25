@@ -8,6 +8,7 @@ import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import { BRANCH_KEYS, useBranches } from "@/hooks/useCommonQuery";
+import { useFileExport } from "@/hooks/useFileExport";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { Branch } from "@/services/commonService";
@@ -28,6 +29,7 @@ import { useState } from "react";
 export default function BranchesPage() {
   const { can } = usePermissions();
   const { reset, applyFilter, updateQueries, query } = useFilter();
+  // const { exportToExcel } = useFileExport();
 
   const { data: branches = [], isLoading, isFetching } = useBranches();
   const qc = useQueryClient();
@@ -203,7 +205,9 @@ export default function BranchesPage() {
                 {
                   type: "default",
                   name: "Xuất Excel",
-                  onClick: () => {},
+                  onClick: () => {
+                    // exportToExcel(filtered, "branches.xlsx");
+                  },
                   icon: <DownloadOutlined />,
                 },
                 {

@@ -1,7 +1,9 @@
 import AppContext from "@/app/context";
+import "antd/dist/reset.css";
+
+import "@/styles/globals.css";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import "@/styles/globals.css";
 
 export const metadata: Metadata = {
   title: "Quản Lý Xưởng May Thiên An",
@@ -39,10 +41,20 @@ export const viewport: Viewport = {
 
 const RootLayout = async ({ children }: { children: React.ReactNode }) => {
   return (
-    <html lang="vi" className="text-[12px] md:text-[14px] lg:text-[16px]">
+    <html
+      lang="vi"
+      className="text-[12px] md:text-[14px] lg:text-[16px]"
+      suppressHydrationWarning
+    >
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Inline script to set theme class before hydration to prevent FOUC */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=localStorage.getItem('theme-mode');if(m){document.documentElement.classList.remove('light','dark');document.documentElement.classList.add(m);}else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.classList.remove('light','dark');document.documentElement.classList.add('dark');}}catch(e){} })()`,
+          }}
+        />
       </head>
 
       <body className={font.className} id="root">
