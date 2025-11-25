@@ -5,7 +5,12 @@ import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
-import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  DownloadOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
 import { App, Button, Descriptions, Drawer, Tag, message } from "antd";
@@ -210,6 +215,16 @@ export default function TransferWarehousePage() {
 
   const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } = useColumn({ defaultColumns: columnsAll });
 
+  const handleExportExcel = () => {
+    // TODO: Implement export to Excel functionality
+    console.log("Xuất Excel chuyển kho");
+  };
+
+  const handleImportExcel = () => {
+    // TODO: Implement import from Excel functionality
+    console.log("Nhập Excel chuyển kho");
+  };
+
   const filtered = applyFilter<TransferTransaction>(transfers);
 
   if (!can("inventory.transfer", "view")) {
@@ -231,16 +246,30 @@ export default function TransferWarehousePage() {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["inventory", "transfer", warehouseId],
-          buttonEnds: can("inventory.transfer", "create")
-            ? [
-                {
-                  type: "primary",
-                  name: "Tạo phiếu chuyển kho",
-                  onClick: () => router.push(`/inventory/transfer/${warehouseId}/create`),
-                  icon: <PlusOutlined />,
-                },
-              ]
-            : undefined,
+          buttonEnds: [
+            {
+              type: "default",
+              name: "Xuất Excel",
+              onClick: handleExportExcel,
+              icon: <DownloadOutlined />,
+            },
+            {
+              type: "default",
+              name: "Nhập Excel",
+              onClick: handleImportExcel,
+              icon: <UploadOutlined />,
+            },
+            ...(can("inventory.transfer", "create")
+              ? [
+                  {
+                    type: "primary" as const,
+                    name: "Tạo phiếu chuyển kho",
+                    onClick: () => router.push(`/inventory/transfer/${warehouseId}/create`),
+                    icon: <PlusOutlined />,
+                  },
+                ]
+              : []),
+          ],
           searchInput: {
             placeholder: "Tìm kiếm phiếu chuyển kho",
             filterKeys: ["transactionCode", "fromWarehouseName", "toWarehouseName", "createdByName"],

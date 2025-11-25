@@ -5,7 +5,11 @@ import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
-import { EyeOutlined } from "@ant-design/icons";
+import {
+  DownloadOutlined,
+  EyeOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
 import { Button, Descriptions, Drawer, Tag } from "antd";
@@ -176,6 +180,16 @@ export default function TransactionHistoryWarehousePage() {
 
   const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } = useColumn({ defaultColumns: columnsAll });
 
+  const handleExportExcel = () => {
+    // TODO: Implement export to Excel functionality
+    console.log("Xuất Excel lịch sử giao dịch");
+  };
+
+  const handleImportExcel = () => {
+    // TODO: Implement import from Excel functionality
+    console.log("Nhập Excel lịch sử giao dịch");
+  };
+
   const filtered = applyFilter<HistoryTransaction>(transactions);
 
   if (!can("inventory.history", "view")) {
@@ -197,6 +211,20 @@ export default function TransactionHistoryWarehousePage() {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["inventory", "history", warehouseId],
+          buttonEnds: [
+            {
+              type: "default",
+              name: "Xuất Excel",
+              onClick: handleExportExcel,
+              icon: <DownloadOutlined />,
+            },
+            {
+              type: "default",
+              name: "Nhập Excel",
+              onClick: handleImportExcel,
+              icon: <UploadOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm lịch sử giao dịch",
             filterKeys: ["transactionCode", "fromWarehouseName", "toWarehouseName", "createdByName"],

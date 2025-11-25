@@ -5,11 +5,11 @@ import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
+import { DownloadOutlined, UploadOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
-import { Button, Segmented, Spin, Tag } from "antd";
+import { Button, Tag } from "antd";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
 
 type BalanceItem = {
   warehouseId: number;
@@ -27,8 +27,6 @@ export default function PageClient() {
   const warehouseId = params?.id;
   const { can } = usePermissions();
   const { reset, applyFilter, updateQueries, query } = useFilter();
-
-  const [view, setView] = useState<"detail" | "summary">("detail");
 
   const columnsAll: TableColumnsType<BalanceItem> = [
     { title: "Mã", dataIndex: "itemCode", key: "itemCode", width: 140 },
@@ -57,6 +55,16 @@ export default function PageClient() {
 
   const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
     useColumn({ defaultColumns: columnsAll });
+
+  const handleExportExcel = () => {
+    // TODO: Implement export to Excel functionality
+    console.log("Xuất Excel tồn kho");
+  };
+
+  const handleImportExcel = () => {
+    // TODO: Implement import from Excel functionality
+    console.log("Nhập Excel tồn kho");
+  };
 
   const { data: balanceData = { details: [], summary: [] }, isLoading, error: queryError } =
     useQuery({
@@ -93,15 +101,6 @@ export default function PageClient() {
   }
 
   const details: BalanceItem[] = balanceData.details || [];
-  type SummaryItem = {
-    itemCode: string;
-    itemName: string;
-    itemType: "NVL" | "THANH_PHAM";
-    totalQuantity: number;
-    unit: string;
-  };
-  const summary: SummaryItem[] = (balanceData.summary as SummaryItem[]) || [];
-
   const filteredDetails = applyFilter<BalanceItem>(details);
 
   // Hiển thị lỗi nếu có
@@ -118,6 +117,7 @@ export default function PageClient() {
     <WrapperContent<BalanceItem>
       isLoading={isLoading}
       header={{
+        refetchDataWithKeys: ["inventory", "balance", warehouseId],
         searchInput: {
           placeholder: "Tìm kiếm kho",
           filterKeys: ["itemName", "itemCode"],
@@ -135,75 +135,27 @@ export default function PageClient() {
         },
         buttonEnds: [
           {
-            name: "",
-            icon: (
-              <Segmented
-                value={view}
-                onChange={(v) => setView(v as "detail" | "summary")}
-                options={[
-                  { label: "Chi tiết", value: "detail" },
-                  { label: "Tổng hợp", value: "summary" },
-                ]}
-              />
-            ),
-            type: "text",
-            onClick: () => {},
+            type: "default",
+            name: "Xuất Excel",
+            onClick: handleExportExcel,
+            icon: <DownloadOutlined />,
+          },
+          {
+            type: "default",
+            name: "Nhập Excel",
+            onClick: handleImportExcel,
+            icon: <UploadOutlined />,
           },
         ],
       }}
     >
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <Spin />
-        </div>
-      ) : view === "detail" ? (
-        <CommonTable
-          loading={isLoading}
-          columns={getVisibleColumns()}
-          dataSource={filteredDetails}
-          paging
-          rank
-        />
-      ) : (
-        <table className="w-full bg-white rounded-lg">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Mã
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Tên
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Loại
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                Tổng tồn
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Đơn vị
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {summary.map((s) => (
-              <tr key={s.itemCode} className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm font-mono">{s.itemCode}</td>
-                <td className="px-6 py-4 text-sm font-medium">{s.itemName}</td>
-                <td className="px-6 py-4">
-                  <Tag color={s.itemType === "NVL" ? "purple" : "green"}>
-                    {s.itemType === "NVL" ? "NVL" : "Thành phẩm"}
-                  </Tag>
-                </td>
-                <td className="px-6 py-4 text-sm text-right font-bold">
-                  {(s.totalQuantity || 0).toLocaleString()}
-                </td>
-                <td className="px-6 py-4 text-sm">{s.unit}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <CommonTable
+        loading={isLoading}
+        columns={getVisibleColumns()}
+        dataSource={filteredDetails}
+        paging
+        rank
+      />
     </WrapperContent>
   );
 }

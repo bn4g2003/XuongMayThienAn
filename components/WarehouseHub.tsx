@@ -7,6 +7,10 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import useColumn from "@/hooks/useColumn";
+import {
+  DownloadOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import { Tag, type TableColumnsType } from "antd";
 import Link from "next/link";
 
@@ -97,6 +101,16 @@ export default function WarehousesHub({ path }: { path: string }) {
   const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
     useColumn({ defaultColumns: columnsAll });
 
+  const handleExportExcel = () => {
+    // TODO: Implement export to Excel functionality
+    console.log("Xuất Excel");
+  };
+
+  const handleImportExcel = () => {
+    // TODO: Implement import from Excel functionality
+    console.log("Nhập Excel");
+  };
+
   return (
     <>
       <WrapperContent<Warehouse>
@@ -104,6 +118,20 @@ export default function WarehousesHub({ path }: { path: string }) {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["warehouses"],
+          buttonEnds: [
+            {
+              type: "default",
+              name: "Xuất Excel",
+              onClick: handleExportExcel,
+              icon: <DownloadOutlined />,
+            },
+            {
+              type: "default",
+              name: "Nhập Excel",
+              onClick: handleImportExcel,
+              icon: <UploadOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm kho",
             filterKeys: ["warehouseName", "warehouseCode", "branchName"],
