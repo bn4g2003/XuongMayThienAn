@@ -1,39 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { usePermissions } from "@/hooks/usePermissions";
-import useFilter from "@/hooks/useFilter";
-import {
-  useUsers,
-  useDeleteUser,
-  useCreateUser,
-  useUpdateUser,
-  USER_KEYS,
-} from "@/hooks/useUserQuery";
 import CommonTable from "@/components/CommonTable";
-import WrapperContent from "@/components/WrapperContent";
-import { Button, Tag, App } from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  LockOutlined,
-  UnlockOutlined,
-  MoreOutlined,
-  EyeOutlined,
-  UploadOutlined,
-  DownloadOutlined,
-} from "@ant-design/icons";
-import type { TableColumnsType } from "antd";
-import useColumn from "@/hooks/useColumn";
-import { Dropdown } from "antd";
-import type { User } from "@/services/userService";
-import { useQuery } from "@tanstack/react-query";
-import { roleService, branchService } from "@/services/commonService";
 import UserDetailDrawer from "@/components/users/UserDetailDrawer";
 import UserFormModal, {
   type UserFormValues,
 } from "@/components/users/UserFormModal";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import {
+  useCreateUser,
+  useDeleteUser,
+  USER_KEYS,
+  useUpdateUser,
+  useUsers,
+} from "@/hooks/useUserQuery";
+import { branchService, roleService } from "@/services/commonService";
+import type { User } from "@/services/userService";
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  EyeOutlined,
+  LockOutlined,
+  MoreOutlined,
+  PlusOutlined,
+  UnlockOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
+import type { TableColumnsType } from "antd";
+import { App, Button, Dropdown, Tag } from "antd";
+import { useState } from "react";
 
 export default function UsersPage() {
   const { can } = usePermissions();
@@ -61,6 +60,9 @@ export default function UsersPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' });
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   const { modal } = App.useApp();
   const handleView = (user: User) => {
     setSelectedUser(user);
@@ -88,6 +90,72 @@ export default function UsersPage() {
       okButtonProps: { danger: true },
       onOk: () => deleteMutation.mutate(id),
     });
+  };
+
+  const handleChangePassword = (user: User) => {
+    setSelectedUser(user);
+    setPasswordForm({ newPassword: '', confirmPassword: '' });
+    setPasswordModalVisible(true);
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (!selectedUser) return;
+
+    if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
+      modal.error({
+        title: 'Lỗi',
+        content: 'Vui lòng nhập đầy đủ thông tin'
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      modal.error({
+        title: 'Lỗi',
+        content: 'Mật khẩu phải có ít nhất 6 ký tự'
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      modal.error({
+        title: 'Lỗi',
+        content: 'Mật khẩu xác nhận không khớp'
+      });
+      return;
+    }
+
+    try {
+      setPasswordSubmitting(true);
+      const res = await fetch(`/api/admin/users/${selectedUser.id}/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword: passwordForm.newPassword })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        modal.success({
+          title: 'Thành công',
+          content: 'Đã đổi mật khẩu thành công'
+        });
+        setPasswordModalVisible(false);
+        setPasswordForm({ newPassword: '', confirmPassword: '' });
+      } else {
+        modal.error({
+          title: 'Lỗi',
+          content: data.error || 'Có lỗi xảy ra'
+        });
+      }
+    } catch (error) {
+      modal.error({
+        title: 'Lỗi',
+        content: 'Có lỗi xảy ra khi đổi mật khẩu'
+      });
+    } finally {
+      setPasswordSubmitting(false);
+    }
   };
 
   const handleModalSubmit = (values: UserFormValues) => {
@@ -175,6 +243,12 @@ export default function UsersPage() {
             label: "Sửa",
             icon: <EditOutlined />,
             onClick: () => handleEdit(record),
+          });
+          menuItems.push({
+            key: "password",
+            label: "Đổi mật khẩu",
+            icon: <LockOutlined />,
+            onClick: () => handleChangePassword(record),
           });
         }
 
@@ -304,6 +378,79 @@ export default function UsersPage() {
         onCancel={() => setModalVisible(false)}
         onSubmit={handleModalSubmit}
       />
+
+      {/* Password Change Modal */}
+      {passwordModalVisible && (
+        <div className="fixed inset-0 bg-gray-500/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <LockOutlined />
+                Đổi mật khẩu
+              </h2>
+              <button 
+                onClick={() => setPasswordModalVisible(false)} 
+                className="text-2xl text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+              <p className="text-sm text-gray-700">
+                <strong>Người dùng:</strong> {selectedUser?.fullName} ({selectedUser?.username})
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Mật khẩu mới <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500"
+                  placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                  disabled={passwordSubmitting}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Xác nhận mật khẩu <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500"
+                  placeholder="Nhập lại mật khẩu mới"
+                  disabled={passwordSubmitting}
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-2 justify-end">
+              <button
+                onClick={() => setPasswordModalVisible(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                disabled={passwordSubmitting}
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handlePasswordSubmit}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                disabled={passwordSubmitting}
+              >
+                {passwordSubmitting ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

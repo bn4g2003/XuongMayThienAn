@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { requirePermission } from '@/lib/permissions';
 import { ApiResponse } from '@/types';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
@@ -83,20 +83,20 @@ export async function GET(
       }
     }
 
-    // Lấy tồn kho hiện tại của các nguyên liệu trong chi nhánh
+    // Lấy tồn kho hiện tại của các nguyên liệu theo từng kho
     const materialIds = Object.keys(materialNeeds).map(id => parseInt(id));
     
     if (materialIds.length > 0) {
       let stockResult;
       if (currentUser.roleCode === 'ADMIN') {
-        // ADMIN xem tồn kho tất cả chi nhánh
+        // ADMIN xem tồn kho tất cả kho
         stockResult = await query(
           `SELECT 
             ib.material_id as "materialId",
-            SUM(ib.quantity) as "totalStock"
+            ib.warehouse_id as "warehouseId",
+            ib.quantity as "stock"
            FROM inventory_balances ib
-           WHERE ib.material_id = ANY($1)
-           GROUP BY ib.material_id`,
+           WHERE ib.material_id = ANY($1)`,
           [materialIds]
         );
       } else {
@@ -104,50 +104,62 @@ export async function GET(
         stockResult = await query(
           `SELECT 
             ib.material_id as "materialId",
-            SUM(ib.quantity) as "totalStock"
+            ib.warehouse_id as "warehouseId",
+            ib.quantity as "stock"
            FROM inventory_balances ib
            JOIN warehouses w ON w.id = ib.warehouse_id
            WHERE ib.material_id = ANY($1)
-             AND w.branch_id = $2
-           GROUP BY ib.material_id`,
+             AND w.branch_id = $2`,
           [materialIds, currentUser.branchId]
         );
       }
 
-      // Cập nhật tồn kho và tính cần nhập
+      // Lưu tồn kho theo từng kho
       for (const stock of stockResult.rows) {
         if (materialNeeds[stock.materialId]) {
-          materialNeeds[stock.materialId].currentStock = parseFloat(stock.totalStock) || 0;
-          materialNeeds[stock.materialId].needToImport = Math.max(
-            0,
-            materialNeeds[stock.materialId].totalNeeded - materialNeeds[stock.materialId].currentStock
-          );
+          if (!materialNeeds[stock.materialId].stockByWarehouse) {
+            materialNeeds[stock.materialId].stockByWarehouse = {};
+          }
+          materialNeeds[stock.materialId].stockByWarehouse[stock.warehouseId] = parseFloat(stock.stock) || 0;
         }
+      }
+
+      // Tính tổng tồn kho (để hiển thị ban đầu)
+      for (const materialId in materialNeeds) {
+        const stockByWarehouse = materialNeeds[materialId].stockByWarehouse || {};
+        const totalStock = Object.values(stockByWarehouse).reduce((sum: number, qty: any) => sum + qty, 0);
+        materialNeeds[materialId].currentStock = totalStock;
+        materialNeeds[materialId].needToImport = Math.max(
+          0,
+          materialNeeds[materialId].totalNeeded - totalStock
+        );
       }
     }
 
-    // Lấy danh sách kho trong chi nhánh (hoặc tất cả nếu ADMIN)
+    // Lấy danh sách kho NVL trong chi nhánh (hoặc tất cả nếu ADMIN)
     let warehousesResult;
     if (currentUser.roleCode === 'ADMIN') {
-      // ADMIN xem tất cả kho
+      // ADMIN xem tất cả kho NVL
       warehousesResult = await query(
         `SELECT 
           id,
           warehouse_code as "warehouseCode",
-          warehouse_name as "warehouseName"
+          warehouse_name as "warehouseName",
+          warehouse_type as "warehouseType"
          FROM warehouses
-         WHERE is_active = true
+         WHERE is_active = true AND warehouse_type = 'NVL'
          ORDER BY warehouse_name`
       );
     } else {
-      // User thường chỉ xem kho trong chi nhánh
+      // User thường chỉ xem kho NVL trong chi nhánh
       warehousesResult = await query(
         `SELECT 
           id,
           warehouse_code as "warehouseCode",
-          warehouse_name as "warehouseName"
+          warehouse_name as "warehouseName",
+          warehouse_type as "warehouseType"
          FROM warehouses
-         WHERE branch_id = $1 AND is_active = true
+         WHERE branch_id = $1 AND is_active = true AND warehouse_type = 'NVL'
          ORDER BY warehouse_name`,
         [currentUser.branchId]
       );
