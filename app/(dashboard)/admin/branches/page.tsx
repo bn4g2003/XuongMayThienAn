@@ -8,6 +8,7 @@ import CommonTable from "@/components/CommonTable";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import { BRANCH_KEYS, useBranches } from "@/hooks/useCommonQuery";
+import { useFileExport } from "@/hooks/useFileExport";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { Branch } from "@/services/commonService";
@@ -28,6 +29,7 @@ import { useState } from "react";
 export default function BranchesPage() {
   const { can } = usePermissions();
   const { reset, applyFilter, updateQueries, query } = useFilter();
+
 
   const { data: branches = [], isLoading, isFetching } = useBranches();
   const qc = useQueryClient();
@@ -184,11 +186,13 @@ export default function BranchesPage() {
     (createMutation as unknown as { isPending?: boolean }).isPending ||
       (updateMutation as unknown as { isPending?: boolean }).isPending
   );
+  const { exportToXlsx } = useFileExport<Branch>(columnsAll);
 
   return (
     <>
       <WrapperContent<Branch>
         isNotAccessible={!can("admin.branches", "view")}
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: BRANCH_KEYS.all,
@@ -203,7 +207,12 @@ export default function BranchesPage() {
                 {
                   type: "default",
                   name: "Xuất Excel",
-                  onClick: () => {},
+                  onClick: () => {
+                    exportToXlsx(
+                      filtered,
+                      `chi-nhanh-${new Date().toISOString()}.xlsx`
+                    );
+                  },
                   icon: <DownloadOutlined />,
                 },
                 {

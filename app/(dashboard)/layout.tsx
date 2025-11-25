@@ -10,28 +10,28 @@ import { useTheme } from "@/providers/AppThemeProvider";
 import { queryClient } from "@/providers/ReactQueryProvider";
 import { useSiteTitleStore } from "@/stores/setSiteTitle";
 import {
-    DashboardOutlined,
-    DoubleRightOutlined,
-    LogoutOutlined,
-    MenuFoldOutlined,
-    MenuUnfoldOutlined,
-    MoonOutlined,
-    SunOutlined,
-    UserOutlined,
+  DashboardOutlined,
+  DoubleRightOutlined,
+  LogoutOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  MoonOutlined,
+  SunOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import type { MenuProps } from "antd";
 import {
-    Avatar,
-    Breadcrumb,
-    Button,
-    Drawer,
-    Dropdown,
-    Layout,
-    Menu,
-    Tooltip,
-    Typography,
-    theme,
+  Avatar,
+  Breadcrumb,
+  Button,
+  Drawer,
+  Dropdown,
+  Layout,
+  Menu,
+  Tooltip,
+  Typography,
+  theme,
 } from "antd";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -61,7 +61,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const titlePage = useSiteTitleStore((state) => state.title);
+  const pageTitle = useSiteTitleStore((state) => state.title);
   const router = useRouter();
   const pathname = usePathname();
   const { can, loading: permLoading } = usePermissions();
@@ -558,10 +558,10 @@ export default function DashboardLayout({
             />
 
             <Breadcrumb items={getBreadcrumbItems()} />
-            {titlePage && (
+            {pageTitle && (
               <>
                 <DoubleRightOutlined />
-                <Text strong>{titlePage}</Text>
+                <Text strong>{pageTitle}</Text>
               </>
             )}
           </div>

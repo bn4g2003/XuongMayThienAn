@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { userService, type CreateUserDto, type UpdateUserDto } from "@/services/userService";
-import { message } from "antd";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { App, message } from "antd";
 
 export const USER_KEYS = {
   all: ["users"],
@@ -30,6 +30,7 @@ export function useUser(id: number) {
 // Hook để tạo user mới
 export function useCreateUser() {
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   return useMutation({
     mutationFn: (userData: CreateUserDto) => userService.create(userData),

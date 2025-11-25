@@ -205,6 +205,7 @@ export default function CategoriesPage() {
     <>
       <WrapperContent<Category>
         isNotAccessible={!can("products.categories", "view")}
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["categories"],

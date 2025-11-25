@@ -10,7 +10,7 @@ import {
   type UpdateProductDto,
 } from "@/services/productService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { message } from "antd";
+import { App, message } from "antd";
 
 // Query Keys
 export const PRODUCT_KEYS = {
@@ -58,6 +58,7 @@ export function useProductBOM(id: number) {
 
 export function useCreateProduct() {
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   return useMutation({
     mutationFn: (data: CreateProductDto) => productService.create(data),

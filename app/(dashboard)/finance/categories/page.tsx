@@ -1,91 +1,157 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { usePermissions } from '@/hooks/usePermissions';
-import WrapperContent from '@/components/WrapperContent';
-import { PlusOutlined, DownloadOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
-import Modal from '@/components/Modal';
+import CommonTable from "@/components/CommonTable";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import { useFileExport } from "@/hooks/useFileExport";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import {
+  DownloadOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { TableColumnsType } from "antd";
+import {
+  App,
+  Card,
+  Col,
+  Form,
+  Input,
+  Modal,
+  Row,
+  Select,
+  Statistic,
+  Tag,
+} from "antd";
+import { useEffect, useState } from "react";
 
 interface FinancialCategory {
   id: number;
   categoryCode: string;
   categoryName: string;
-  type: 'THU' | 'CHI';
+  type: "THU" | "CHI";
   description: string;
   isActive: boolean;
   createdAt: string;
 }
 
+interface CategoryFormValues {
+  categoryCode: string;
+  categoryName: string;
+  type: "THU" | "CHI";
+  description?: string;
+}
 export default function FinancialCategoriesPage() {
+  const { message, modal } = App.useApp();
   const { can } = usePermissions();
   const [categories, setCategories] = useState<FinancialCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<FinancialCategory | null>(null);
-  const [filterType, setFilterType] = useState<'ALL' | 'THU' | 'CHI'>('ALL');
-  const [filterQueries, setFilterQueries] = useState<Record<string, any>>({});
-  const [searchTerm, setSearchTerm] = useState('');
+  const [editingCategory, setEditingCategory] =
+    useState<FinancialCategory | null>(null);
+  const { reset, applyFilter, updateQueries, query } = useFilter();
 
-  const [formData, setFormData] = useState({
-    categoryCode: '',
-    categoryName: '',
-    type: 'THU' as 'THU' | 'CHI',
-    description: '',
-  });
+  const [form] = Form.useForm();
 
   useEffect(() => {
     fetchCategories();
   }, []);
 
+  const queryClient = useQueryClient();
+
+  const saveMutation = useMutation({
+    mutationFn: async ({
+      values,
+      id,
+    }: {
+      values: CategoryFormValues;
+      id?: number | null;
+    }) => {
+      const url = id
+        ? `/api/finance/categories/${id}`
+        : "/api/finance/categories";
+      const method = id ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Có lỗi xảy ra");
+      return data;
+    },
+    onSuccess: () => {
+      message.success(
+        editingCategory ? "Cập nhật thành công!" : "Tạo danh mục thành công!"
+      );
+      setShowModal(false);
+      resetForm();
+      fetchCategories();
+      try {
+        queryClient.invalidateQueries({ queryKey: ["finance", "categories"] });
+      } catch {
+        // ignore
+      }
+    },
+    onError: (err: unknown) => {
+      const error = err as Error;
+      message.error(error.message || "Có lỗi xảy ra");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/finance/categories/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Có lỗi xảy ra");
+      return data;
+    },
+    onSuccess: () => {
+      message.success("Xóa thành công!");
+      fetchCategories();
+      try {
+        queryClient.invalidateQueries({ queryKey: ["finance", "categories"] });
+      } catch {
+        // ignore
+      }
+    },
+    onError: (err: unknown) => {
+      const error = err as Error;
+      message.error(error.message || "Có lỗi xảy ra");
+    },
+  });
+
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/finance/categories');
+      const res = await fetch("/api/finance/categories");
       const data = await res.json();
       if (data.success) {
         setCategories(data.data);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error("Error fetching categories:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      const url = editingCategory
-        ? `/api/finance/categories/${editingCategory.id}`
-        : '/api/finance/categories';
-      
-      const method = editingCategory ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        alert(editingCategory ? 'Cập nhật thành công!' : 'Tạo danh mục thành công!');
-        setShowModal(false);
-        resetForm();
-        fetchCategories();
-      } else {
-        alert(data.error || 'Có lỗi xảy ra');
-      }
-    } catch (error) {
-      console.error('Error saving category:', error);
-      alert('Có lỗi xảy ra');
-    }
+  const onFinish = (values: {
+    categoryCode: string;
+    categoryName: string;
+    type: "THU" | "CHI";
+    description?: string;
+  }) => {
+    saveMutation.mutate({ values, id: editingCategory?.id ?? undefined });
   };
 
   const handleEdit = (category: FinancialCategory) => {
     setEditingCategory(category);
-    setFormData({
+    form.setFieldsValue({
       categoryCode: category.categoryCode,
       categoryName: category.categoryName,
       type: category.type,
@@ -95,85 +161,120 @@ export default function FinancialCategoriesPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Bạn có chắc muốn xóa danh mục này?')) return;
-
-    try {
-      const res = await fetch(`/api/finance/categories/${id}`, {
-        method: 'DELETE',
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        alert('Xóa thành công!');
-        fetchCategories();
-      } else {
-        alert(data.error || 'Có lỗi xảy ra');
-      }
-    } catch (error) {
-      console.error('Error deleting category:', error);
-      alert('Có lỗi xảy ra');
-    }
+    modal.confirm({
+      title: "Bạn có chắc muốn xóa danh mục này?",
+      okText: "Xóa",
+      okType: "danger",
+      onOk: async () => {
+        deleteMutation.mutate(id);
+      },
+    });
   };
 
   const resetForm = () => {
-    setFormData({
-      categoryCode: '',
-      categoryName: '',
-      type: 'THU',
-      description: '',
-    });
+    form.resetFields();
     setEditingCategory(null);
   };
 
   const handleResetAll = () => {
-    setFilterQueries({});
-    setSearchTerm('');
-    setFilterType('ALL');
+    reset();
   };
 
   const handleExportExcel = () => {
-    alert('Chức năng xuất Excel đang được phát triển');
+    exportToXlsx(
+      filteredCategories as FinancialCategory[],
+      `danh_muc_tai_chinh_${new Date().toISOString()}.xlsx`
+    );
   };
 
   const handleImportExcel = () => {
-    alert('Chức năng nhập Excel đang được phát triển');
+    message.info("Chức năng nhập Excel đang được phát triển");
   };
 
-  const filteredCategories = categories.filter(cat => {
-    const searchKey = 'search,categoryCode,categoryName';
-    const searchValue = filterQueries[searchKey] || '';
-    const matchSearch = !searchValue || 
-      cat.categoryCode.toLowerCase().includes(searchValue.toLowerCase()) ||
-      cat.categoryName.toLowerCase().includes(searchValue.toLowerCase());
-    
-    const typeValue = filterQueries['type'];
-    const matchType = !typeValue || cat.type === typeValue;
-    
-    const statusValue = filterQueries['isActive'];
-    const matchStatus = statusValue === undefined || cat.isActive === (statusValue === 'true');
-    
-    return matchSearch && matchType && matchStatus;
-  });
+  const filteredCategories = applyFilter(categories as FinancialCategory[]);
+
+  const total = filteredCategories.length;
+  const totalActive = filteredCategories.filter((c) => c.isActive).length;
+  const totalInactive = total - totalActive;
+
+  const columnsAll: TableColumnsType<FinancialCategory> = [
+    { title: "Mã", dataIndex: "categoryCode", key: "categoryCode", width: 160 },
+    { title: "Tên danh mục", dataIndex: "categoryName", key: "categoryName" },
+    {
+      title: "Loại",
+      dataIndex: "type",
+      key: "type",
+      width: 100,
+      render: (t: "THU" | "CHI") => (
+        <Tag color={t === "THU" ? "success" : "error"}>{t}</Tag>
+      ),
+    },
+    { title: "Mô tả", dataIndex: "description", key: "description" },
+    {
+      title: "Trạng thái",
+      dataIndex: "isActive",
+      key: "isActive",
+      width: 120,
+      render: (v: boolean) => (
+        <Tag color={v ? "success" : "default"}>{v ? "Hoạt động" : "Ngừng"}</Tag>
+      ),
+    },
+    {
+      title: "Tạo lúc",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      width: 180,
+      render: (d: string) => new Date(d).toLocaleString("vi-VN"),
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      width: 160,
+      align: "right",
+      render: (_: unknown, record: FinancialCategory) => (
+        <div>
+          {can("finance.categories", "edit") && (
+            <button
+              onClick={() => handleEdit(record)}
+              className="text-blue-600 hover:text-blue-900 mr-3"
+            >
+              Sửa
+            </button>
+          )}
+          {can("finance.categories", "delete") && (
+            <button
+              onClick={() => handleDelete(record.id)}
+              className="text-red-600 hover:text-red-900"
+            >
+              Xóa
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const { exportToXlsx } = useFileExport<FinancialCategory>(columnsAll);
+  const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
+    useColumn({ defaultColumns: columnsAll });
 
   return (
     <>
       <WrapperContent<FinancialCategory>
-        title="Danh mục tài chính"
-        isNotAccessible={!can('finance.categories', 'view')}
+        isNotAccessible={!can("finance.categories", "view")}
         isLoading={loading}
         header={{
-          buttonEnds: can('finance.categories', 'create')
+          buttonEnds: can("finance.categories", "create")
             ? [
                 {
-                  type: 'default',
-                  name: 'Đặt lại',
+                  type: "default",
+                  name: "Đặt lại",
                   onClick: handleResetAll,
                   icon: <ReloadOutlined />,
                 },
                 {
-                  type: 'primary',
-                  name: 'Thêm',
+                  type: "primary",
+                  name: "Thêm",
                   onClick: () => {
                     resetForm();
                     setShowModal(true);
@@ -181,203 +282,134 @@ export default function FinancialCategoriesPage() {
                   icon: <PlusOutlined />,
                 },
                 {
-                  type: 'default',
-                  name: 'Xuất Excel',
+                  type: "default",
+                  name: "Xuất Excel",
                   onClick: handleExportExcel,
                   icon: <DownloadOutlined />,
                 },
                 {
-                  type: 'default',
-                  name: 'Nhập Excel',
+                  type: "default",
+                  name: "Nhập Excel",
                   onClick: handleImportExcel,
                   icon: <UploadOutlined />,
                 },
               ]
             : [
                 {
-                  type: 'default',
-                  name: 'Đặt lại',
+                  type: "default",
+                  name: "Đặt lại",
                   onClick: handleResetAll,
                   icon: <ReloadOutlined />,
                 },
               ],
           searchInput: {
-            placeholder: 'Tìm theo mã, tên danh mục...',
-            filterKeys: ['categoryCode', 'categoryName'],
+            placeholder: "Tìm theo mã, tên danh mục...",
+            filterKeys: ["categoryCode", "categoryName"],
           },
           filters: {
             fields: [
               {
-                type: 'select',
-                name: 'type',
-                label: 'Loại',
+                type: "select",
+                name: "type",
+                label: "Loại",
                 options: [
-                  { label: 'Thu', value: 'THU' },
-                  { label: 'Chi', value: 'CHI' },
+                  { label: "Thu", value: "THU" },
+                  { label: "Chi", value: "CHI" },
                 ],
               },
               {
-                type: 'select',
-                name: 'isActive',
-                label: 'Trạng thái',
+                type: "select",
+                name: "isActive",
+                label: "Trạng thái",
                 options: [
-                  { label: 'Hoạt động', value: 'true' },
-                  { label: 'Ngừng', value: 'false' },
+                  { label: "Hoạt động", value: "true" },
+                  { label: "Ngừng", value: "false" },
                 ],
               },
             ],
-            onApplyFilter: (arr) => {
-              const newQueries: Record<string, any> = { ...filterQueries };
-              arr.forEach(({ key, value }) => {
-                newQueries[key] = value;
-              });
-              setFilterQueries(newQueries);
-            },
-            onReset: () => {
-              setFilterQueries({});
-              setSearchTerm('');
-              setFilterType('ALL');
-            },
-            query: filterQueries,
+            onApplyFilter: (arr) => updateQueries(arr),
+            onReset: () => reset(),
+            query,
+          },
+          columnSettings: {
+            columns: columnsCheck,
+            onChange: (c) => updateColumns(c),
+            onReset: () => resetColumns(),
           },
         }}
       >
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên danh mục</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loại</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mô tả</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-              {(can('finance.categories', 'edit') || can('finance.categories', 'delete')) && (
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Thao tác</th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {filteredCategories.map((category) => (
-              <tr key={category.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{category.categoryCode}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">{category.categoryName}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    category.type === 'THU' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {category.type}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">{category.description}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    category.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {category.isActive ? 'Hoạt động' : 'Ngừng'}
-                  </span>
-                </td>
-                {(can('finance.categories', 'edit') || can('finance.categories', 'delete')) && (
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {can('finance.categories', 'edit') && (
-                      <button
-                        onClick={() => handleEdit(category)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        Sửa
-                      </button>
-                    )}
-                    {can('finance.categories', 'delete') && (
-                      <button
-                        onClick={() => handleDelete(category.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Xóa
-                      </button>
-                    )}
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="space-y-6">
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={8} md={6}>
+              <Card>
+                <Statistic title="Tổng danh mục" value={total} />
+              </Card>
+            </Col>
+            <Col xs={24} sm={8} md={6}>
+              <Card>
+                <Statistic title="Hoạt động" value={totalActive} />
+              </Card>
+            </Col>
+            <Col xs={24} sm={8} md={6}>
+              <Card>
+                <Statistic title="Ngừng" value={totalInactive} />
+              </Card>
+            </Col>
+          </Row>
+
+          <CommonTable
+            columns={getVisibleColumns()}
+            dataSource={filteredCategories}
+            loading={loading}
+            paging
+          />
         </div>
       </WrapperContent>
 
       {/* Modal */}
       <Modal
-        isOpen={showModal}
-        onClose={() => {
+        open={showModal}
+        onCancel={() => {
           setShowModal(false);
           resetForm();
         }}
-        title={editingCategory ? 'Sửa danh mục' : 'Thêm danh mục'}
+        title={editingCategory ? "Sửa danh mục" : "Thêm danh mục"}
+        onOk={() => form.submit()}
+        confirmLoading={saveMutation.isPending}
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Mã danh mục *</label>
-            <input
-              type="text"
-              value={formData.categoryCode}
-              onChange={(e) => setFormData({ ...formData, categoryCode: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
-              required
-              disabled={!!editingCategory}
-            />
-          </div>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={{ type: "THU" }}
+        >
+          <Form.Item
+            name="categoryCode"
+            label="Mã danh mục"
+            rules={[{ required: true, message: "Vui lòng nhập mã danh mục" }]}
+          >
+            <Input disabled={!!editingCategory} />
+          </Form.Item>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Tên danh mục *</label>
-            <input
-              type="text"
-              value={formData.categoryName}
-              onChange={(e) => setFormData({ ...formData, categoryName: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
-              required
-            />
-          </div>
+          <Form.Item
+            name="categoryName"
+            label="Tên danh mục"
+            rules={[{ required: true, message: "Vui lòng nhập tên danh mục" }]}
+          >
+            <Input />
+          </Form.Item>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Loại *</label>
-            <select
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value as 'THU' | 'CHI' })}
-              className="w-full px-3 py-2 border rounded"
-              required
-            >
-              <option value="THU">Thu</option>
-              <option value="CHI">Chi</option>
-            </select>
-          </div>
+          <Form.Item name="type" label="Loại" rules={[{ required: true }]}>
+            <Select>
+              <Select.Option value="THU">Thu</Select.Option>
+              <Select.Option value="CHI">Chi</Select.Option>
+            </Select>
+          </Form.Item>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Mô tả</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
-              rows={3}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowModal(false);
-                resetForm();
-              }}
-              className="px-4 py-2 border rounded hover:bg-gray-50"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              {editingCategory ? 'Cập nhật' : 'Tạo mới'}
-            </button>
-          </div>
-        </form>
+          <Form.Item name="description" label="Mô tả">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
       </Modal>
     </>
   );

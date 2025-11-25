@@ -1,33 +1,34 @@
 "use client";
 
-import React, { useState } from "react";
+import CommonTable from "@/components/CommonTable";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import { useFileExport } from "@/hooks/useFileExport";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
-  Button,
-  Drawer,
-  Modal,
-  Form,
-  Input,
-  Dropdown,
-  Descriptions,
-  App,
-  Tooltip,
-} from "antd";
-import type { TableColumnsType } from "antd";
-import {
-  PlusOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   EditOutlined,
   EyeOutlined,
   MoreOutlined,
-  DownloadOutlined,
+  PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
-import WrapperContent from "@/components/WrapperContent";
-import CommonTable from "@/components/CommonTable";
-import useFilter from "@/hooks/useFilter";
-import useColumn from "@/hooks/useColumn";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TableColumnsType } from "antd";
+import {
+  App,
+  Button,
+  Descriptions,
+  Drawer,
+  Dropdown,
+  Form,
+  Input,
+  Modal,
+  Tooltip,
+} from "antd";
+import { useState } from "react";
 
 interface Role {
   id: number;
@@ -223,11 +224,13 @@ export default function RolesPage() {
 
   const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
     useColumn({ defaultColumns: columnsAll });
+  const { exportToXlsx } = useFileExport<Role>(columnsAll);
 
   return (
     <>
       <WrapperContent<Role>
         isNotAccessible={!can("admin.roles", "view")}
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["roles"],
@@ -242,7 +245,12 @@ export default function RolesPage() {
                 {
                   type: "default",
                   name: "Xuất Excel",
-                  onClick: () => {},
+                  onClick: () => {
+                    exportToXlsx(
+                      filtered,
+                      `vai_tro_${new Date().toISOString()}.xlsx`
+                    );
+                  },
                   icon: <DownloadOutlined />,
                   isLoading: true,
                 },

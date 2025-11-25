@@ -1,19 +1,42 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { usePermissions } from '@/hooks/usePermissions';
-import WrapperContent from '@/components/WrapperContent';
-import { PlusOutlined, DownloadOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
-import Modal from '@/components/Modal';
-import CashbookSidePanel from '@/components/CashbookSidePanel';
+import CashbookSidePanel from "@/components/CashbookSidePanel";
+import CommonTable from "@/components/CommonTable";
+import WrapperContent from "@/components/WrapperContent";
+import useColumn from "@/hooks/useColumn";
+import { useFileExport } from "@/hooks/useFileExport";
+import useFilter from "@/hooks/useFilter";
+import { usePermissions } from "@/hooks/usePermissions";
+import {
+  DownloadOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { TableColumnsType } from "antd";
+import {
+  App,
+  Card,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Select,
+  Statistic,
+  Tag,
+} from "antd";
+import { useEffect, useState } from "react";
 
 interface CashBook {
   id: number;
   transactionCode: string;
   transactionDate: string;
   amount: number;
-  transactionType: 'THU' | 'CHI';
-  paymentMethod: 'CASH' | 'BANK' | 'TRANSFER';
+  transactionType: "THU" | "CHI";
+  paymentMethod: "CASH" | "BANK" | "TRANSFER";
   description: string;
   categoryName: string;
   categoryCode: string;
@@ -30,7 +53,7 @@ interface FinancialCategory {
   id: number;
   categoryCode: string;
   categoryName: string;
-  type: 'THU' | 'CHI';
+  type: "THU" | "CHI";
 }
 
 interface BankAccount {
@@ -40,30 +63,31 @@ interface BankAccount {
   balance: number;
 }
 
+type CashbookFormValues = {
+  transactionCode: string;
+  transactionDate: string;
+  financialCategoryId: string | number;
+  amount: number | string;
+  transactionType: "THU" | "CHI";
+  paymentMethod: "CASH" | "BANK" | "TRANSFER";
+  bankAccountId?: string | number | null;
+  description?: string;
+};
+
 export default function CashBooksPage() {
   const { can } = usePermissions();
+  const { message } = App.useApp();
   const [cashbooks, setCashbooks] = useState<CashBook[]>([]);
   const [categories, setCategories] = useState<FinancialCategory[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [selectedCashbook, setSelectedCashbook] = useState<CashBook | null>(null);
-  
-  const [filterType, setFilterType] = useState<'ALL' | 'THU' | 'CHI'>('ALL');
-  const [filterPaymentMethod, setFilterPaymentMethod] = useState<'ALL' | 'CASH' | 'BANK' | 'TRANSFER'>('ALL');
-  const [filterQueries, setFilterQueries] = useState<Record<string, any>>({});
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCashbook, setSelectedCashbook] = useState<CashBook | null>(
+    null
+  );
+  const { reset, applyFilter, updateQueries, query } = useFilter();
 
-  const [formData, setFormData] = useState({
-    transactionCode: '',
-    transactionDate: new Date().toISOString().split('T')[0],
-    financialCategoryId: '',
-    amount: '',
-    transactionType: 'THU' as 'THU' | 'CHI',
-    paymentMethod: 'CASH' as 'CASH' | 'BANK' | 'TRANSFER',
-    bankAccountId: '',
-    description: '',
-  });
+  const [form] = Form.useForm();
 
   useEffect(() => {
     fetchCashbooks();
@@ -71,15 +95,57 @@ export default function CashBooksPage() {
     fetchBankAccounts();
   }, []);
 
+  const queryClient = useQueryClient();
+
+  const saveMutation = useMutation({
+    mutationFn: async (values: CashbookFormValues) => {
+      const payload = {
+        ...values,
+        amount: parseFloat(String(values.amount || 0)),
+        financialCategoryId: parseInt(String(values.financialCategoryId)),
+        bankAccountId: values.bankAccountId
+          ? parseInt(String(values.bankAccountId))
+          : null,
+      };
+      const res = await fetch("/api/finance/cashbooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Có lỗi xảy ra");
+      return data;
+    },
+    onSuccess: () => {
+      message.success("Tạo phiếu thu/chi thành công!");
+      setShowModal(false);
+      resetForm();
+      fetchCashbooks();
+      fetchBankAccounts();
+      try {
+        queryClient.invalidateQueries({ queryKey: ["finance", "cashbooks"] });
+        queryClient.invalidateQueries({
+          queryKey: ["finance", "bank-accounts"],
+        });
+      } catch {
+        // ignore
+      }
+    },
+    onError: (err: unknown) => {
+      const error = err as Error;
+      message.error(error.message || "Có lỗi xảy ra");
+    },
+  });
+
   const fetchCashbooks = async () => {
     try {
-      const res = await fetch('/api/finance/cashbooks');
+      const res = await fetch("/api/finance/cashbooks");
       const data = await res.json();
       if (data.success) {
         setCashbooks(data.data);
       }
     } catch (error) {
-      console.error('Error fetching cashbooks:', error);
+      console.error("Error fetching cashbooks:", error);
     } finally {
       setLoading(false);
     }
@@ -87,135 +153,140 @@ export default function CashBooksPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/finance/categories?isActive=true');
+      const res = await fetch("/api/finance/categories?isActive=true");
       const data = await res.json();
       if (data.success) {
         setCategories(data.data);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error("Error fetching categories:", error);
     }
   };
 
   const fetchBankAccounts = async () => {
     try {
-      const res = await fetch('/api/finance/bank-accounts?isActive=true');
+      const res = await fetch("/api/finance/bank-accounts?isActive=true");
       const data = await res.json();
       if (data.success) {
         setBankAccounts(data.data);
       }
     } catch (error) {
-      console.error('Error fetching bank accounts:', error);
+      console.error("Error fetching bank accounts:", error);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      const res = await fetch('/api/finance/cashbooks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          amount: parseFloat(formData.amount),
-          financialCategoryId: parseInt(formData.financialCategoryId),
-          bankAccountId: formData.bankAccountId ? parseInt(formData.bankAccountId) : null,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        alert('Tạo phiếu thu/chi thành công!');
-        setShowModal(false);
-        resetForm();
-        fetchCashbooks();
-        fetchBankAccounts(); // Refresh để cập nhật số dư
-      } else {
-        alert(data.error || 'Có lỗi xảy ra');
-      }
-    } catch (error) {
-      console.error('Error saving cashbook:', error);
-      alert('Có lỗi xảy ra');
-    }
+  const onFinish = (values: CashbookFormValues) => {
+    saveMutation.mutate(values);
   };
-
-
 
   const resetForm = () => {
-    setFormData({
-      transactionCode: '',
-      transactionDate: new Date().toISOString().split('T')[0],
-      financialCategoryId: '',
-      amount: '',
-      transactionType: 'THU',
-      paymentMethod: 'CASH',
-      bankAccountId: '',
-      description: '',
-    });
+    form.resetFields();
   };
 
   const handleResetAll = () => {
-    setFilterQueries({});
-    setSearchTerm('');
-    setFilterType('ALL');
-    setFilterPaymentMethod('ALL');
+    reset();
   };
 
   const handleExportExcel = () => {
-    alert('Chức năng xuất Excel đang được phát triển');
+    exportToXlsx(
+      filteredCashbooks as CashBook[],
+      `so_quy_${new Date().toISOString()}.xlsx`
+    );
   };
 
   const handleImportExcel = () => {
-    alert('Chức năng nhập Excel đang được phát triển');
+    message.info("Chức năng nhập Excel đang được phát triển");
   };
 
-  const filteredCashbooks = cashbooks.filter(cb => {
-    const searchKey = 'search,transactionCode,categoryName,description';
-    const searchValue = filterQueries[searchKey] || '';
-    const matchSearch = !searchValue || 
-      cb.transactionCode.toLowerCase().includes(searchValue.toLowerCase()) ||
-      cb.categoryName.toLowerCase().includes(searchValue.toLowerCase()) ||
-      cb.description?.toLowerCase().includes(searchValue.toLowerCase());
-    
-    const typeValue = filterQueries['transactionType'];
-    const matchType = !typeValue || cb.transactionType === typeValue;
-    
-    const methodValue = filterQueries['paymentMethod'];
-    const matchMethod = !methodValue || cb.paymentMethod === methodValue;
-    
-    return matchSearch && matchType && matchMethod;
-  });
+  const filteredCashbooks = applyFilter(cashbooks as CashBook[]);
 
   const totalThu = filteredCashbooks
-    .filter(cb => cb.transactionType === 'THU')
+    .filter((cb) => cb.transactionType === "THU")
     .reduce((sum, cb) => sum + parseFloat(cb.amount.toString()), 0);
 
   const totalChi = filteredCashbooks
-    .filter(cb => cb.transactionType === 'CHI')
+    .filter((cb) => cb.transactionType === "CHI")
     .reduce((sum, cb) => sum + parseFloat(cb.amount.toString()), 0);
 
-  const filteredCategories = categories.filter(cat => cat.type === formData.transactionType);
+  const transactionType = Form.useWatch("transactionType", form) || "THU";
+  const paymentMethod = Form.useWatch("paymentMethod", form) || "CASH";
+  const filteredCategories = categories.filter(
+    (cat) => cat.type === transactionType
+  );
+
+  const columnsAll: TableColumnsType<CashBook> = [
+    {
+      title: "Mã GD",
+      dataIndex: "transactionCode",
+      key: "transactionCode",
+      width: 160,
+      render: (text, record) => (
+        <a onClick={() => setSelectedCashbook(record as CashBook)}>{text}</a>
+      ),
+    },
+    {
+      title: "Ngày",
+      dataIndex: "transactionDate",
+      key: "transactionDate",
+      width: 140,
+      render: (d: string) => new Date(d).toLocaleDateString("vi-VN"),
+    },
+    {
+      title: "Danh mục",
+      dataIndex: "categoryName",
+      key: "categoryName",
+      width: 200,
+    },
+    {
+      title: "Loại",
+      dataIndex: "transactionType",
+      key: "transactionType",
+      width: 100,
+      render: (t: "THU" | "CHI") => (
+        <Tag color={t === "THU" ? "success" : "error"}>{t}</Tag>
+      ),
+    },
+    {
+      title: "Số tiền",
+      dataIndex: "amount",
+      key: "amount",
+      width: 140,
+      align: "right",
+      render: (a: number) =>
+        parseFloat(String(a)).toLocaleString("vi-VN") + " đ",
+    },
+    {
+      title: "Phương thức",
+      dataIndex: "paymentMethod",
+      key: "paymentMethod",
+      width: 160,
+      render: (p) =>
+        p === "CASH" ? "Tiền mặt" : p === "BANK" ? "Ngân hàng" : "Chuyển khoản",
+    },
+    { title: "Mô tả", dataIndex: "description", key: "description" },
+  ];
+  const { exportToXlsx } = useFileExport<CashBook>(columnsAll);
+
+  const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
+    useColumn({ defaultColumns: columnsAll });
 
   return (
     <>
       <WrapperContent<CashBook>
-        title="Sổ quỹ"
-        isNotAccessible={!can('finance.cashbooks', 'view')}
+        isNotAccessible={!can("finance.cashbooks", "view")}
         isLoading={loading}
         header={{
-          buttonEnds: can('finance.cashbooks', 'create')
+          buttonEnds: can("finance.cashbooks", "create")
             ? [
                 {
-                  type: 'default',
-                  name: 'Đặt lại',
+                  type: "default",
+                  name: "Đặt lại",
                   onClick: handleResetAll,
                   icon: <ReloadOutlined />,
                 },
                 {
-                  type: 'primary',
-                  name: 'Thêm',
+                  type: "primary",
+                  name: "Thêm",
                   onClick: () => {
                     resetForm();
                     setShowModal(true);
@@ -223,287 +294,208 @@ export default function CashBooksPage() {
                   icon: <PlusOutlined />,
                 },
                 {
-                  type: 'default',
-                  name: 'Xuất Excel',
+                  type: "default",
+                  name: "Xuất Excel",
                   onClick: handleExportExcel,
                   icon: <DownloadOutlined />,
                 },
                 {
-                  type: 'default',
-                  name: 'Nhập Excel',
+                  type: "default",
+                  name: "Nhập Excel",
                   onClick: handleImportExcel,
                   icon: <UploadOutlined />,
                 },
               ]
             : [
                 {
-                  type: 'default',
-                  name: 'Đặt lại',
+                  type: "default",
+                  name: "Đặt lại",
                   onClick: handleResetAll,
                   icon: <ReloadOutlined />,
                 },
               ],
           searchInput: {
-            placeholder: 'Tìm theo mã GD, danh mục, mô tả...',
-            filterKeys: ['transactionCode', 'categoryName', 'description'],
+            placeholder: "Tìm theo mã GD, danh mục, mô tả...",
+            filterKeys: ["transactionCode", "categoryName", "description"],
           },
           filters: {
             fields: [
               {
-                type: 'select',
-                name: 'transactionType',
-                label: 'Loại',
+                type: "select",
+                name: "transactionType",
+                label: "Loại",
                 options: [
-                  { label: 'Thu', value: 'THU' },
-                  { label: 'Chi', value: 'CHI' },
+                  { label: "Thu", value: "THU" },
+                  { label: "Chi", value: "CHI" },
                 ],
               },
               {
-                type: 'select',
-                name: 'paymentMethod',
-                label: 'Phương thức',
+                type: "select",
+                name: "paymentMethod",
+                label: "Phương thức",
                 options: [
-                  { label: 'Tiền mặt', value: 'CASH' },
-                  { label: 'Ngân hàng', value: 'BANK' },
-                  { label: 'Chuyển khoản', value: 'TRANSFER' },
+                  { label: "Tiền mặt", value: "CASH" },
+                  { label: "Ngân hàng", value: "BANK" },
+                  { label: "Chuyển khoản", value: "TRANSFER" },
                 ],
               },
             ],
-            onApplyFilter: (arr) => {
-              const newQueries: Record<string, any> = { ...filterQueries };
-              arr.forEach(({ key, value }) => {
-                newQueries[key] = value;
-              });
-              setFilterQueries(newQueries);
-            },
-            onReset: () => {
-              setFilterQueries({});
-              setSearchTerm('');
-              setFilterType('ALL');
-              setFilterPaymentMethod('ALL');
-            },
-            query: filterQueries,
+            onApplyFilter: (arr) => updateQueries(arr),
+            onReset: () => reset(),
+            query,
+          },
+          columnSettings: {
+            columns: columnsCheck,
+            onChange: (c) => updateColumns(c),
+            onReset: () => resetColumns(),
           },
         }}
       >
         <div className="space-y-6">
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={8} md={6}>
+              <Card>
+                <Statistic
+                  title="Tổng thu"
+                  value={totalThu.toLocaleString("vi-VN") + " đ"}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={8} md={6}>
+              <Card>
+                <Statistic
+                  title="Tổng chi"
+                  value={totalChi.toLocaleString("vi-VN") + " đ"}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={8} md={6}>
+              <Card>
+                <Statistic
+                  title="Chênh lệch"
+                  value={(totalThu - totalChi).toLocaleString("vi-VN") + " đ"}
+                />
+              </Card>
+            </Col>
+          </Row>
 
-          {/* Summary */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-              <div className="text-sm text-green-600 mb-1">Tổng thu</div>
-              <div className="text-2xl font-bold text-green-700">
-                {totalThu.toLocaleString('vi-VN')} đ
-              </div>
-            </div>
-            <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-              <div className="text-sm text-red-600 mb-1">Tổng chi</div>
-              <div className="text-2xl font-bold text-red-700">
-                {totalChi.toLocaleString('vi-VN')} đ
-              </div>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <div className="text-sm text-blue-600 mb-1">Chênh lệch</div>
-              <div className={`text-2xl font-bold ${totalThu - totalChi >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                {(totalThu - totalChi).toLocaleString('vi-VN')} đ
-              </div>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã GD</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Danh mục</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loại</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Số tiền</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phương thức</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mô tả</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {filteredCashbooks.map((cb) => (
-              <tr 
-                key={cb.id}
-                onClick={() => setSelectedCashbook(cb)}
-                className="hover:bg-gray-50 cursor-pointer"
-              >
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{cb.transactionCode}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {new Date(cb.transactionDate).toLocaleDateString('vi-VN')}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">{cb.categoryName}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    cb.transactionType === 'THU' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {cb.transactionType}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
-                  {parseFloat(cb.amount.toString()).toLocaleString('vi-VN')} đ
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <span className="px-2 py-1 bg-gray-100 rounded text-xs">
-                    {cb.paymentMethod === 'CASH' ? 'Tiền mặt' : cb.paymentMethod === 'BANK' ? 'Ngân hàng' : 'Chuyển khoản'}
-                  </span>
-                  {cb.bankAccountNumber && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      {cb.bankName} - {cb.bankAccountNumber}
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">{cb.description}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-          </div>
+          <CommonTable
+            columns={getVisibleColumns()}
+            dataSource={filteredCashbooks}
+            loading={loading}
+            paging
+          />
         </div>
       </WrapperContent>
 
       {/* Modal */}
       <Modal
-        isOpen={showModal}
-        onClose={() => {
+        open={showModal}
+        onCancel={() => {
           setShowModal(false);
           resetForm();
         }}
         title="Thêm phiếu thu/chi"
+        onOk={() => form.submit()}
+        confirmLoading={saveMutation.isPending}
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Mã giao dịch *</label>
-              <input
-                type="text"
-                value={formData.transactionCode}
-                onChange={(e) => setFormData({ ...formData, transactionCode: e.target.value })}
-                className="w-full px-3 py-2 border rounded"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Ngày giao dịch *</label>
-              <input
-                type="date"
-                value={formData.transactionDate}
-                onChange={(e) => setFormData({ ...formData, transactionDate: e.target.value })}
-                className="w-full px-3 py-2 border rounded"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Loại *</label>
-            <select
-              value={formData.transactionType}
-              onChange={(e) => setFormData({ ...formData, transactionType: e.target.value as 'THU' | 'CHI', financialCategoryId: '' })}
-              className="w-full px-3 py-2 border rounded"
-              required
-            >
-              <option value="THU">Thu</option>
-              <option value="CHI">Chi</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Danh mục *</label>
-            <select
-              value={formData.financialCategoryId}
-              onChange={(e) => setFormData({ ...formData, financialCategoryId: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
-              required
-            >
-              <option value="">-- Chọn danh mục --</option>
-              {filteredCategories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.categoryName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Số tiền *</label>
-            <input
-              type="number"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
-              required
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Phương thức thanh toán *</label>
-            <select
-              value={formData.paymentMethod}
-              onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as any })}
-              className="w-full px-3 py-2 border rounded"
-              required
-            >
-              <option value="CASH">Tiền mặt</option>
-              <option value="BANK">Ngân hàng</option>
-              <option value="TRANSFER">Chuyển khoản</option>
-            </select>
-          </div>
-
-          {(formData.paymentMethod === 'BANK' || formData.paymentMethod === 'TRANSFER') && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Tài khoản ngân hàng *</label>
-              <select
-                value={formData.bankAccountId}
-                onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
-                className="w-full px-3 py-2 border rounded"
-                required
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={{
+            transactionDate: new Date().toISOString().split("T")[0],
+            transactionType: "THU",
+            paymentMethod: "CASH",
+          }}
+        >
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="transactionCode"
+                label="Mã giao dịch"
+                rules={[{ required: true }]}
               >
-                <option value="">-- Chọn tài khoản --</option>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="transactionDate"
+                label="Ngày giao dịch"
+                rules={[{ required: true }]}
+              >
+                <Input type="date" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            name="transactionType"
+            label="Loại"
+            rules={[{ required: true }]}
+          >
+            <Select
+              onChange={() =>
+                form.setFieldsValue({ financialCategoryId: undefined })
+              }
+            >
+              <Select.Option value="THU">Thu</Select.Option>
+              <Select.Option value="CHI">Chi</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="financialCategoryId"
+            label="Danh mục"
+            rules={[{ required: true }]}
+          >
+            <Select placeholder="-- Chọn danh mục --">
+              {filteredCategories.map((cat) => (
+                <Select.Option key={cat.id} value={cat.id}>
+                  {cat.categoryName}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item name="amount" label="Số tiền" rules={[{ required: true }]}>
+            <InputNumber style={{ width: "100%" }} min={0} step={0.01} />
+          </Form.Item>
+
+          <Form.Item
+            name="paymentMethod"
+            label="Phương thức"
+            rules={[{ required: true }]}
+          >
+            <Select>
+              <Select.Option value="CASH">Tiền mặt</Select.Option>
+              <Select.Option value="BANK">Ngân hàng</Select.Option>
+              <Select.Option value="TRANSFER">Chuyển khoản</Select.Option>
+            </Select>
+          </Form.Item>
+
+          {(paymentMethod === "BANK" || paymentMethod === "TRANSFER") && (
+            <Form.Item
+              name="bankAccountId"
+              label="Tài khoản ngân hàng"
+              rules={[{ required: true }]}
+            >
+              <Select placeholder="-- Chọn tài khoản --">
                 {bankAccounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.bankName} - {acc.accountNumber} (Số dư: {acc.balance.toLocaleString('vi-VN')} đ)
-                  </option>
+                  <Select.Option key={acc.id} value={acc.id}>
+                    {acc.bankName} - {acc.accountNumber} (Số dư:{" "}
+                    {acc.balance.toLocaleString("vi-VN")} đ)
+                  </Select.Option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </Form.Item>
           )}
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Mô tả</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border rounded"
-              rows={3}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowModal(false);
-                resetForm();
-              }}
-              className="px-4 py-2 border rounded hover:bg-gray-50"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Tạo mới
-            </button>
-          </div>
-        </form>
+          <Form.Item name="description" label="Mô tả">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
       </Modal>
 
       {/* Side Panel */}

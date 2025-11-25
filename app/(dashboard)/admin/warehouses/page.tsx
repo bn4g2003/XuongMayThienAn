@@ -5,6 +5,7 @@ import WarehouseForm from "@/components/WarehouseForm";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import { useBranches } from "@/hooks/useCommonQuery";
+import { useFileExport } from "@/hooks/useFileExport";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import { WarehouseType } from "@/types/enum";
@@ -218,6 +219,8 @@ export default function WarehousesPage() {
     },
   ];
 
+  const { exportToXlsx } = useFileExport<Warehouse>(columnsAll);
+
   const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
     useColumn({ defaultColumns: columnsAll });
 
@@ -225,6 +228,7 @@ export default function WarehousesPage() {
     <>
       <WrapperContent<Warehouse>
         isNotAccessible={!can("admin.warehouses", "view")}
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["warehouses"],
@@ -239,7 +243,12 @@ export default function WarehousesPage() {
                 {
                   type: "default",
                   name: "Xuất Excel",
-                  onClick: () => {},
+                  onClick: () => {
+                    exportToXlsx(
+                      filtered,
+                      `kho_hang_${new Date().toISOString()}.xlsx`
+                    );
+                  },
                   icon: <DownloadOutlined />,
                 },
                 {

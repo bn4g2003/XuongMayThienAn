@@ -7,6 +7,7 @@ import UserFormModal, {
 } from "@/components/users/UserFormModal";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
+import { useFileExport } from "@/hooks/useFileExport";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
@@ -273,6 +274,7 @@ export default function UsersPage() {
       },
     },
   ];
+  const { exportToXlsx } = useFileExport<User>(columnsAll);
 
   const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
     useColumn({ defaultColumns: columnsAll });
@@ -281,6 +283,7 @@ export default function UsersPage() {
     <>
       <WrapperContent<User>
         isNotAccessible={!can("admin.users", "view")}
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: USER_KEYS.all,
@@ -295,7 +298,12 @@ export default function UsersPage() {
                 {
                   type: "default",
                   name: "Xuất Excel",
-                  onClick: () => {},
+                  onClick: () => {
+                    exportToXlsx(
+                      filteredUsers,
+                      `nguoi_dung_${new Date().toISOString()}.xlsx`
+                    );
+                  },
                   icon: <DownloadOutlined />,
                 },
                 {
@@ -388,8 +396,8 @@ export default function UsersPage() {
                 <LockOutlined />
                 Đổi mật khẩu
               </h2>
-              <button 
-                onClick={() => setPasswordModalVisible(false)} 
+              <button
+                onClick={() => setPasswordModalVisible(false)}
                 className="text-2xl text-gray-400 hover:text-gray-600"
               >
                 ×

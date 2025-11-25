@@ -1,14 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { message } from "antd";
 import {
-  customerService,
   customerGroupService,
+  customerService,
   salesOrderService,
   type CreateCustomerDto,
-  type UpdateCustomerDto,
   type CreateSalesOrderDto,
+  type UpdateCustomerDto,
   type UpdateSalesOrderDto,
 } from "@/services/salesService";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { App, message } from "antd";
 
 // Query Keys
 export const CUSTOMER_KEYS = {
@@ -48,6 +48,7 @@ export function useCustomer(id: number) {
 
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   return useMutation({
     mutationFn: (data: CreateCustomerDto) => customerService.create(data),

@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customerGroupService, type CreateCustomerGroupDto, type UpdateCustomerGroupDto } from "@/services/customerGroupService";
-import { message } from "antd";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { App, message } from "antd";
 
 export const CUSTOMER_GROUP_KEYS = {
   all: ["customer-groups"],
@@ -30,6 +30,8 @@ export function useCustomerGroup(id: number) {
 // Hook để tạo customer group mới
 export function useCreateCustomerGroup() {
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
+
 
   return useMutation({
     mutationFn: (groupData: CreateCustomerGroupDto) => customerGroupService.create(groupData),

@@ -15,6 +15,7 @@ export interface Branch {
   phone?: string;
   email?: string;
   isActive: boolean;
+  createdAt?: string;
 }
 
 export const roleService = {

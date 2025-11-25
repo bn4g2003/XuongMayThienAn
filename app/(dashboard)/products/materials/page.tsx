@@ -275,6 +275,7 @@ export default function MaterialsPage() {
     <>
       <WrapperContent<Material>
         isNotAccessible={!can("products.materials", "view")}
+        isRefetching={isFetching}
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["materials"],

@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orderService, type CreateOrderDto } from "@/services/orderService";
-import { message } from "antd";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { App, message } from "antd";
 
 export const ORDER_KEYS = {
   all: ["orders"],
@@ -30,6 +30,7 @@ export function useOrder(id: number) {
 // Hook để tạo order mới
 export function useCreateOrder() {
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   return useMutation({
     mutationFn: (orderData: CreateOrderDto) => orderService.create(orderData),
