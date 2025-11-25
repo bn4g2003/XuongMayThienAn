@@ -100,6 +100,11 @@ export const allMenuItems: Array<{
         href: "/inventory/transaction-history/",
         permission: "inventory.transaction-history",
       },
+      {
+        title: "Báo cáo kho",
+        href: "/inventory/reports/",
+        permission: "inventory.balance",
+      },
     ],
   },
   {

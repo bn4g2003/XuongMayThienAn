@@ -1,41 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useTheme } from "@/providers/AppThemeProvider";
-import {
-  Layout,
-  Menu,
-  Breadcrumb,
-  Avatar,
-  Typography,
-  Dropdown,
-  Tooltip,
-  theme,
-  Button,
-  Drawer,
-} from "antd";
-import type { MenuProps } from "antd";
-import {
-  DashboardOutlined,
-  UserOutlined,
-  LogoutOutlined,
-  SunOutlined,
-  MoonOutlined,
-  DoubleRightOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-} from "@ant-design/icons";
-import { themeColors } from "@/configs/theme";
+import ItemColorTheme from "@/components/ItemColorTheme";
 import LoaderApp from "@/components/LoaderApp";
 import { allMenuItems } from "@/configs/menu";
-import ItemColorTheme from "@/components/ItemColorTheme";
-import { useSiteTitleStore } from "@/stores/setSiteTitle";
-import { queryClient } from "@/providers/ReactQueryProvider";
+import { themeColors } from "@/configs/theme";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useTheme } from "@/providers/AppThemeProvider";
+import { queryClient } from "@/providers/ReactQueryProvider";
+import { useSiteTitleStore } from "@/stores/setSiteTitle";
+import {
+    DashboardOutlined,
+    DoubleRightOutlined,
+    LogoutOutlined,
+    MenuFoldOutlined,
+    MenuUnfoldOutlined,
+    MoonOutlined,
+    SunOutlined,
+    UserOutlined,
+} from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
+import type { MenuProps } from "antd";
+import {
+    Avatar,
+    Breadcrumb,
+    Button,
+    Drawer,
+    Dropdown,
+    Layout,
+    Menu,
+    Tooltip,
+    Typography,
+    theme,
+} from "antd";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -112,6 +112,7 @@ export default function DashboardLayout({
       "/inventory/export": "Xuất kho",
       "/inventory/transfer": "Luân chuyển kho",
       "/inventory/balance": "Báo cáo tồn kho",
+      "/inventory/reports": "Báo cáo kho",
       "/sales/customers": "Khách hàng",
       "/sales/orders": "Đơn hàng",
       "/sales/reports": "Báo cáo bán hàng",
