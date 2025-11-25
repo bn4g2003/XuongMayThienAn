@@ -1,11 +1,11 @@
 import {
-  AppstoreOutlined,
-  DashboardOutlined,
-  DollarOutlined,
-  InboxOutlined,
-  SettingOutlined,
-  ShoppingCartOutlined,
-  ShoppingOutlined,
+    AppstoreOutlined,
+    DashboardOutlined,
+    DollarOutlined,
+    InboxOutlined,
+    SettingOutlined,
+    ShoppingCartOutlined,
+    ShoppingOutlined,
 } from "@ant-design/icons";
 
 export const allMenuItems: Array<{
@@ -140,6 +140,11 @@ export const allMenuItems: Array<{
       {
         title: "Đơn đặt hàng",
         href: "/purchasing/orders",
+        permission: "purchasing.orders",
+      },
+      {
+        title: "Báo cáo",
+        href: "/purchasing/reports",
         permission: "purchasing.orders",
       },
     ],
