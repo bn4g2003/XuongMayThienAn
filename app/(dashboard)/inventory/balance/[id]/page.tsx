@@ -88,7 +88,6 @@ export default function PageClient() {
 
       return body.data;
     },
-    staleTime: 60 * 1000,
   });
 
   if (!can("inventory.balance", "view")) {

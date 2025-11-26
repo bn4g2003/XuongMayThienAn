@@ -16,7 +16,7 @@ type ThemeContextType = {
 };
 
 const ThemeContext = createContext<ThemeContextType>({
-  mode: "dark",
+  mode: "light",
   themeName: "default",
   setMode: () => {},
   setThemeName: () => {},
@@ -32,10 +32,11 @@ export const AppThemeProvider = ({
   const [mode, setMode] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
       const savedMode = localStorage.getItem("theme-mode");
-      return (savedMode as "light" | "dark") || "dark";
+      return (savedMode as "light" | "dark") || "light";
     }
-    return "dark";
+    return "light";
   });
+  const [mounted, setMounted] = useState(false);
 
   const [themeName, setThemeName] = useState<ThemeName>(() => {
     if (typeof window !== "undefined") {
@@ -86,6 +87,13 @@ export const AppThemeProvider = ({
     "small"
   );
 
+  // Track client mount to avoid hydration warnings when replacing server-rendered
+  // Suspense placeholders with client-only providers/components.
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     const MD_WIDTH = 768; // matches typical md breakpoint in useWindowBreakpoint
 
@@ -132,7 +140,13 @@ export const AppThemeProvider = ({
             },
           }}
         >
-          <AntdApp>{children}</AntdApp>
+          <div suppressHydrationWarning>
+            {mounted ? (
+              <AntdApp>{children}</AntdApp>
+            ) : (
+              <div className="ant-app" />
+            )}
+          </div>
         </ConfigProvider>
       </ThemeContext.Provider>
     </AntdRegistry>

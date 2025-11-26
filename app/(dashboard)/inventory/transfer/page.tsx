@@ -1,5 +1,5 @@
-import WarehousesHub from "@/components/WarehouseHub";
+import InventoryHub from "@/components/InventoryHub";
 
 export default async function Page() {
-  return <WarehousesHub path="transfer" />;
+  return <InventoryHub path="transfer" />;
 }

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
           p.category_id as "categoryId", p.description, p.unit, p.cost_price as "costPrice",
           p.is_active as "isActive", p.branch_id as "branchId",
           pc.category_name as "categoryName",
-          b.branch_name as "branchName"
+          b.branch_name as "branchName",
         FROM products p
         LEFT JOIN product_categories pc ON pc.id = p.category_id
         LEFT JOIN branches b ON b.id = p.branch_id

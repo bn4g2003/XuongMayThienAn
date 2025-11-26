@@ -5,6 +5,7 @@ import CustomerGroupDetailDrawer from "@/components/customers/CustomerGroupDetai
 import CustomerGroupFormModal, {
   type CustomerGroupFormValues,
 } from "@/components/customers/CustomerGroupFormModal";
+import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import {
@@ -18,16 +19,12 @@ import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { CustomerGroup } from "@/services/customerGroupService";
 import {
-  DeleteOutlined,
   DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
-  MoreOutlined,
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
-import { App, Button, Dropdown } from "antd";
+import { App } from "antd";
 import { useState } from "react";
 
 export default function CustomerGroupsPage() {
@@ -115,14 +112,14 @@ export default function CustomerGroupsPage() {
 
   const columnsAll: TableColumnsType<CustomerGroup> = [
     {
-      title: "Mã nhóm",
+      title: "Mã",
       dataIndex: "groupCode",
       key: "groupCode",
       width: 150,
       fixed: "left",
     },
     {
-      title: "Tên nhóm",
+      title: "Tên",
       dataIndex: "groupName",
       key: "groupName",
       width: 200,
@@ -145,7 +142,7 @@ export default function CustomerGroupsPage() {
       render: (text: string) => text || "-",
     },
     {
-      title: "Số khách hàng",
+      title: "Lượng khách hàng",
       dataIndex: "customerCount",
       key: "customerCount",
       width: 130,
@@ -157,44 +154,17 @@ export default function CustomerGroupsPage() {
     {
       title: "Thao tác",
       key: "action",
-      width: 100,
+      width: 130,
       fixed: "right",
       render: (_: unknown, record: CustomerGroup) => {
-        const menuItems = [
-          {
-            key: "view",
-            label: "Xem",
-            icon: <EyeOutlined />,
-            onClick: () => handleView(record),
-          },
-        ];
-
-        if (can("sales.customers", "edit")) {
-          menuItems.push({
-            key: "edit",
-            label: "Sửa",
-            icon: <EditOutlined />,
-            onClick: () => handleEdit(record),
-          });
-        }
-
-        if (can("sales.customers", "delete")) {
-          menuItems.push({
-            key: "delete",
-            label: "Xóa",
-            icon: <DeleteOutlined />,
-            onClick: () => handleDelete(record.id),
-          });
-        }
-
         return (
-          <Dropdown
-            menu={{ items: menuItems }}
-            trigger={["click"]}
-            placement="bottomLeft"
-          >
-            <Button type="text" icon={<MoreOutlined />} size="small" />
-          </Dropdown>
+          <TableActions
+            onView={() => handleView(record)}
+            onEdit={() => handleEdit(record)}
+            onDelete={() => handleDelete(record.id)}
+            canEdit={can("sales.customers", "edit")}
+            canDelete={can("sales.customers", "delete")}
+          />
         );
       },
     },
@@ -211,28 +181,31 @@ export default function CustomerGroupsPage() {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: CUSTOMER_GROUP_KEYS.all,
-          buttonEnds: can("sales.customers", "create")
-            ? [
-                {
-                  type: "primary",
-                  name: "Thêm",
-                  onClick: handleCreate,
-                  icon: <PlusOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Xuất Excel",
-                  onClick: handleExportExcel,
-                  icon: <DownloadOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Nhập Excel",
-                  onClick: handleImportExcel,
-                  icon: <UploadOutlined />,
-                },
-              ]
-            : undefined,
+          buttonEnds: [
+            {
+              can: can("sales.customers", "create"),
+              type: "primary",
+              name: "Thêm",
+              onClick: handleCreate,
+              icon: <PlusOutlined />,
+            },
+            {
+              can: can("sales.customers", "create"),
+
+              type: "default",
+              name: "Xuất Excel",
+              onClick: handleExportExcel,
+              icon: <DownloadOutlined />,
+            },
+            {
+              can: can("sales.customers", "create"),
+
+              type: "default",
+              name: "Nhập Excel",
+              onClick: handleImportExcel,
+              icon: <UploadOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm nhóm khách hàng",
             filterKeys: ["groupName", "groupCode", "description"],

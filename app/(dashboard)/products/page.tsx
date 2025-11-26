@@ -1,6 +1,7 @@
 "use client";
 
 import CommonTable from "@/components/CommonTable";
+import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import ProductDetailDrawer from "@/components/products/ProductDetailDrawer";
 import ProductFormModal, {
@@ -25,17 +26,13 @@ import type {
 import { formatCurrency } from "@/utils/formatCurrency";
 import {
   CheckCircleOutlined,
-  DeleteOutlined,
   DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
-  MoreOutlined,
   PlusOutlined,
   StopOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
-import { App, Button, Dropdown, Tag } from "antd";
+import { App, Tag } from "antd";
 import { useState } from "react";
 
 export default function ProductsPage() {
@@ -107,7 +104,7 @@ export default function ProductsPage() {
       width: 100,
     },
     {
-      title: "Tên sản phẩm",
+      title: "Tên",
       dataIndex: "productName",
       key: "productName",
       width: 160,
@@ -159,41 +156,14 @@ export default function ProductsPage() {
       width: 100,
       fixed: "right",
       render: (_: unknown, record: Product) => {
-        const menuItems = [
-          {
-            key: "view",
-            label: "Xem",
-            icon: <EyeOutlined />,
-            onClick: () => handleView(record),
-          },
-        ];
-
-        if (can("products.products", "edit")) {
-          menuItems.push({
-            key: "edit",
-            label: "Sửa",
-            icon: <EditOutlined />,
-            onClick: () => handleEdit(record),
-          });
-        }
-
-        if (can("products.products", "delete")) {
-          menuItems.push({
-            key: "delete",
-            label: "Xóa",
-            icon: <DeleteOutlined />,
-            onClick: () => handleDelete(record.id),
-          });
-        }
-
         return (
-          <Dropdown
-            menu={{ items: menuItems }}
-            trigger={["click"]}
-            placement="bottomLeft"
-          >
-            <Button type="text" icon={<MoreOutlined />} size="small" />
-          </Dropdown>
+          <TableActions
+            onView={() => handleView(record)}
+            onEdit={() => handleEdit(record)}
+            onDelete={() => handleDelete(record.id)}
+            canEdit={can("products.products", "edit")}
+            canDelete={can("products.products", "delete")}
+          />
         );
       },
     },
@@ -207,28 +177,31 @@ export default function ProductsPage() {
         header={{
           refetchDataWithKeys: PRODUCT_KEYS.all,
 
-          buttonEnds: can("products.products", "create")
-            ? [
-                {
-                  type: "primary",
-                  name: "Thêm",
-                  onClick: handleCreate,
-                  icon: <PlusOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Xuất Excel",
-                  onClick: () => {},
-                  icon: <DownloadOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Nhập Excel",
-                  onClick: () => {},
-                  icon: <UploadOutlined />,
-                },
-              ]
-            : undefined,
+          buttonEnds: [
+            {
+              can: can("products.products", "create"),
+              type: "primary",
+              name: "Thêm",
+              onClick: handleCreate,
+              icon: <PlusOutlined />,
+            },
+            {
+              can: can("products.products", "create"),
+
+              type: "default",
+              name: "Xuất Excel",
+              onClick: () => {},
+              icon: <DownloadOutlined />,
+            },
+            {
+              can: can("products.products", "create"),
+
+              type: "default",
+              name: "Nhập Excel",
+              onClick: () => {},
+              icon: <UploadOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm sản phẩm",
             filterKeys: [

@@ -2,7 +2,7 @@
 
 import ItemColorTheme from "@/components/ItemColorTheme";
 import LoaderApp from "@/components/LoaderApp";
-import { allMenuItems } from "@/configs/menu";
+import { allMenuItems, breadcrumbMap } from "@/configs/menu";
 import { themeColors } from "@/configs/theme";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -29,7 +29,6 @@ import {
   Dropdown,
   Layout,
   Menu,
-  Tooltip,
   Typography,
   theme,
 } from "antd";
@@ -84,8 +83,6 @@ export default function DashboardLayout({
       const body = await res.json();
       return body;
     },
-    retry: false,
-    staleTime: 0,
   });
   const loading = meLoading || permLoading;
 
@@ -99,32 +96,6 @@ export default function DashboardLayout({
   const user: User | null = meData?.data?.user || null;
 
   const getBreadcrumbTitle = (path: string) => {
-    const breadcrumbMap: Record<string, string> = {
-      "/admin/users": "Quản lý người dùng",
-      "/admin/roles": "Quản lý vai trò",
-      "/admin/branches": "Quản lý chi nhánh",
-      "/admin/warehouses": "Quản lý kho hàng",
-      "/products": "Quản lý sản phẩm",
-      "/products/categories": "Danh mục sản phẩm",
-      "/products/materials": "Nguyên vật liệu",
-      "/inventory": "Quản lý kho",
-      "/inventory/import": "Nhập kho",
-      "/inventory/export": "Xuất kho",
-      "/inventory/transfer": "Luân chuyển kho",
-      "/inventory/balance": "Báo cáo tồn kho",
-      "/inventory/reports": "Báo cáo kho",
-      "/sales/customers": "Khách hàng",
-      "/sales/orders": "Đơn hàng",
-      "/sales/reports": "Báo cáo bán hàng",
-      "/purchasing/suppliers": "Nhà cung cấp",
-      "/purchasing/orders": "Đơn đặt hàng",
-      "/finance/categories": "Danh mục tài chính",
-      "/finance/bank-accounts": "Tài khoản ngân hàng",
-      "/finance/cashbooks": "Sổ quỹ",
-      "/finance/debts": "Công nợ",
-      "/finance/reports": "Báo cáo tài chính",
-    };
-
     // Kiểm tra exact match
     if (breadcrumbMap[path]) return breadcrumbMap[path];
 
@@ -172,11 +143,9 @@ export default function DashboardLayout({
         key: item.href,
         icon: item.icon,
         label: (
-          <Tooltip title={item.title} placement="right">
-            <Link href={item.href}>
-              <span style={ellipsisStyle}>{item.title}</span>
-            </Link>
-          </Tooltip>
+          <Link href={item.href}>
+            <span style={ellipsisStyle}>{item.title}</span>
+          </Link>
         ),
       };
     }
@@ -189,20 +158,18 @@ export default function DashboardLayout({
       children: item.children?.map((child) => ({
         key: child.href,
         label: (
-          <Tooltip title={child.title} placement="right">
-            <Link href={child.href}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 8,
-                }}
-              >
-                <span style={ellipsisStyle}>{child.title}</span>
-              </div>
-            </Link>
-          </Tooltip>
+          <Link href={child.href}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+              }}
+            >
+              <span style={ellipsisStyle}>{child.title}</span>
+            </div>
+          </Link>
         ),
       })),
     };
@@ -273,6 +240,33 @@ export default function DashboardLayout({
       if (hasActiveChild && item.key) openKeys.push(String(item.key));
     }
     return openKeys;
+  };
+
+  // Controlled open keys for accordion behavior: keep only one submenu open at a time
+  const [openKeys, setOpenKeys] = useState<string[]>(getOpenKeys());
+
+  useEffect(() => {
+    // update open keys when pathname changes (e.g. navigation)
+    setOpenKeys(getOpenKeys());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // Ensure menu open state matches current path on initial mount and when
+  // menuItems change (for example when permissions load). This guarantees
+  // that after a full page reload the parent submenu containing the current
+  // route will be expanded.
+  useEffect(() => {
+    setOpenKeys(getOpenKeys());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, menuItems.length]);
+
+  const handleOpenChange = (keys: string[]) => {
+    // keep only the most recently opened key (accordion)
+    if (!keys || keys.length === 0) {
+      setOpenKeys([]);
+      return;
+    }
+    setOpenKeys([keys[keys.length - 1]]);
   };
 
   const getBreadcrumbItems = () => {
@@ -432,7 +426,8 @@ export default function DashboardLayout({
               <Menu
                 mode="inline"
                 selectedKeys={getSelectedKey()}
-                defaultOpenKeys={getOpenKeys()}
+                openKeys={openKeys}
+                onOpenChange={handleOpenChange}
                 items={antdMenuItems}
                 onClick={() => {
                   /* no-op on desktop */
@@ -473,7 +468,8 @@ export default function DashboardLayout({
               <Menu
                 mode="inline"
                 selectedKeys={getSelectedKey()}
-                defaultOpenKeys={getOpenKeys()}
+                openKeys={openKeys}
+                onOpenChange={handleOpenChange}
                 items={antdMenuItems}
                 onClick={() => setSidebarOpen(false)}
               />

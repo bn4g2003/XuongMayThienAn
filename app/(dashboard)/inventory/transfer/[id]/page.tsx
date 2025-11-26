@@ -1,13 +1,13 @@
 "use client";
 
 import CommonTable from "@/components/CommonTable";
+import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   DownloadOutlined,
-  EyeOutlined,
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
@@ -76,7 +76,7 @@ export default function TransferWarehousePage() {
 
   const columnsAll: TableColumnsType<TransferTransaction> = [
     {
-      title: "Mã phiếu",
+      title: "Mã",
       dataIndex: "transactionCode",
       key: "transactionCode",
       width: 140,
@@ -143,34 +143,16 @@ export default function TransferWarehousePage() {
       width: 200,
       fixed: "right",
       render: (_: unknown, record: TransferTransaction) => (
-        <div className="flex gap-2">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleView(record)}
-          >
-            Xem
-          </Button>
-          {record.status === "PENDING" && can("inventory.transfer", "edit") && (
-            <Button
-              type="link"
-              size="small"
-              onClick={() => handleApprove(record.id)}
-            >
-              Duyệt
-            </Button>
-          )}
-          <Button
-            type="link"
-            size="small"
-            onClick={() =>
-              window.open(`/api/inventory/transfer/${record.id}/pdf`, "_blank")
-            }
-          >
-            In
-          </Button>
-        </div>
+        <TableActions
+          onView={() => handleView(record)}
+          onApprove={() => handleApprove(record.id)}
+          onPrint={() =>
+            window.open(`/api/inventory/transfer/${record.id}/pdf`, "_blank")
+          }
+          canApprove={
+            can("inventory.transfer", "edit") && record.status === "PENDING"
+          }
+        />
       ),
     },
   ];
@@ -276,28 +258,29 @@ export default function TransferWarehousePage() {
           refetchDataWithKeys: ["inventory", "transfer", warehouseId],
           buttonEnds: [
             {
+              can: can("inventory.transfer", "create"),
+
               type: "default",
               name: "Xuất Excel",
               onClick: handleExportExcel,
               icon: <DownloadOutlined />,
             },
             {
+              can: can("inventory.transfer", "create"),
+
               type: "default",
               name: "Nhập Excel",
               onClick: handleImportExcel,
               icon: <UploadOutlined />,
             },
-            ...(can("inventory.transfer", "create")
-              ? [
-                  {
-                    type: "primary" as const,
-                    name: "Tạo phiếu chuyển kho",
-                    onClick: () =>
-                      router.push(`/inventory/transfer/${warehouseId}/create`),
-                    icon: <PlusOutlined />,
-                  },
-                ]
-              : []),
+            {
+              can: can("inventory.transfer", "create"),
+              type: "primary" as const,
+              name: "Tạo phiếu chuyển kho",
+              onClick: () =>
+                router.push(`/inventory/transfer/${warehouseId}/create`),
+              icon: <PlusOutlined />,
+            },
           ],
           searchInput: {
             placeholder: "Tìm kiếm phiếu chuyển kho",

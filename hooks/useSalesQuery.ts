@@ -98,7 +98,6 @@ export function useCustomerGroups() {
   return useQuery({
     queryKey: CUSTOMER_GROUP_KEYS.lists(),
     queryFn: customerGroupService.getAll,
-    staleTime: 5 * 60 * 1000,
   });
 }
 

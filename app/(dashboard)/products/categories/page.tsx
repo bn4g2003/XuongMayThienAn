@@ -2,23 +2,20 @@
 
 import CategoryForm from "@/components/categories/CategoryForm";
 import CommonTable from "@/components/CommonTable";
+import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Category, CategoryFormValues } from "@/types/category";
 import {
-  DeleteOutlined,
   DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
-  MoreOutlined,
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
-import { App, Button, Descriptions, Drawer, Dropdown, Modal } from "antd";
+import { App, Descriptions, Drawer, Modal } from "antd";
 import { useState } from "react";
 
 export default function CategoriesPage() {
@@ -132,13 +129,13 @@ export default function CategoriesPage() {
 
   const columnsAll: TableColumnsType<Category> = [
     {
-      title: "Mã danh mục",
+      title: "Mã",
       dataIndex: "categoryCode",
       key: "categoryCode",
       width: 140,
     },
     {
-      title: "Tên danh mục",
+      title: "Tên",
       dataIndex: "categoryName",
       key: "categoryName",
       width: 220,
@@ -162,37 +159,14 @@ export default function CategoriesPage() {
       width: 120,
       fixed: "right",
       render: (_value: unknown, record: Category) => {
-        const menuItems = [
-          {
-            key: "view",
-            label: "Xem",
-            icon: <EyeOutlined />,
-            onClick: () => handleView(record),
-          },
-        ];
-        if (can("products.categories", "edit"))
-          menuItems.push({
-            key: "edit",
-            label: "Sửa",
-            icon: <EditOutlined />,
-            onClick: () => handleEdit(record),
-          });
-        if (can("products.categories", "delete"))
-          menuItems.push({
-            key: "delete",
-            label: "Xóa",
-            icon: <DeleteOutlined />,
-            onClick: () => handleDelete(record.id),
-          });
-
         return (
-          <Dropdown
-            menu={{ items: menuItems }}
-            trigger={["click"]}
-            placement="bottomLeft"
-          >
-            <Button type="text" icon={<MoreOutlined />} size="small" />
-          </Dropdown>
+          <TableActions
+            onView={() => handleView(record)}
+            onEdit={() => handleEdit(record)}
+            onDelete={() => handleDelete(record.id)}
+            canEdit={can("products.categories", "edit")}
+            canDelete={can("products.categories", "delete")}
+          />
         );
       },
     },
@@ -209,28 +183,31 @@ export default function CategoriesPage() {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["categories"],
-          buttonEnds: can("products.categories", "create")
-            ? [
-                {
-                  type: "primary",
-                  name: "Thêm",
-                  onClick: handleCreate,
-                  icon: <PlusOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Xuất Excel",
-                  onClick: () => {},
-                  icon: <DownloadOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Nhập Excel",
-                  onClick: () => {},
-                  icon: <UploadOutlined />,
-                },
-              ]
-            : undefined,
+          buttonEnds: [
+            {
+              can: can("products.categories", "create"),
+              type: "primary",
+              name: "Thêm",
+              onClick: handleCreate,
+              icon: <PlusOutlined />,
+            },
+            {
+              can: can("products.categories", "create"),
+
+              type: "default",
+              name: "Xuất Excel",
+              onClick: () => {},
+              icon: <DownloadOutlined />,
+            },
+            {
+              can: can("products.categories", "create"),
+
+              type: "default",
+              name: "Nhập Excel",
+              onClick: () => {},
+              icon: <UploadOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm danh mục",
             filterKeys: ["categoryName", "categoryCode", "description"],

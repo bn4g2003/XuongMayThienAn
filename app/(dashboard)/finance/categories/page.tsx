@@ -1,6 +1,7 @@
 "use client";
 
 import CommonTable from "@/components/CommonTable";
+import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import { useFileExport } from "@/hooks/useFileExport";
@@ -199,7 +200,7 @@ export default function FinancialCategoriesPage() {
 
   const columnsAll: TableColumnsType<FinancialCategory> = [
     { title: "Mã", dataIndex: "categoryCode", key: "categoryCode", width: 160 },
-    { title: "Tên danh mục", dataIndex: "categoryName", key: "categoryName" },
+    { title: "Danh mục", dataIndex: "categoryName", key: "categoryName" },
     {
       title: "Loại",
       dataIndex: "type",
@@ -232,24 +233,12 @@ export default function FinancialCategoriesPage() {
       width: 160,
       align: "right",
       render: (_: unknown, record: FinancialCategory) => (
-        <div>
-          {can("finance.categories", "edit") && (
-            <button
-              onClick={() => handleEdit(record)}
-              className="text-blue-600 hover:text-blue-900 mr-3"
-            >
-              Sửa
-            </button>
-          )}
-          {can("finance.categories", "delete") && (
-            <button
-              onClick={() => handleDelete(record.id)}
-              className="text-red-600 hover:text-red-900"
-            >
-              Xóa
-            </button>
-          )}
-        </div>
+        <TableActions
+          onEdit={() => handleEdit(record)}
+          onDelete={() => handleDelete(record.id)}
+          canEdit={can("finance.categories", "edit")}
+          canDelete={can("finance.categories", "delete")}
+        />
       ),
     },
   ];
@@ -264,44 +253,41 @@ export default function FinancialCategoriesPage() {
         isNotAccessible={!can("finance.categories", "view")}
         isLoading={loading}
         header={{
-          buttonEnds: can("finance.categories", "create")
-            ? [
-                {
-                  type: "default",
-                  name: "Đặt lại",
-                  onClick: handleResetAll,
-                  icon: <ReloadOutlined />,
-                },
-                {
-                  type: "primary",
-                  name: "Thêm",
-                  onClick: () => {
-                    resetForm();
-                    setShowModal(true);
-                  },
-                  icon: <PlusOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Xuất Excel",
-                  onClick: handleExportExcel,
-                  icon: <DownloadOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Nhập Excel",
-                  onClick: handleImportExcel,
-                  icon: <UploadOutlined />,
-                },
-              ]
-            : [
-                {
-                  type: "default",
-                  name: "Đặt lại",
-                  onClick: handleResetAll,
-                  icon: <ReloadOutlined />,
-                },
-              ],
+          refetchDataWithKeys: ["finance", "categories"],
+          buttonEnds: [
+            {
+              can: can("finance.categories", "create"),
+              type: "default",
+              name: "Đặt lại",
+              onClick: handleResetAll,
+              icon: <ReloadOutlined />,
+            },
+            {
+              can: can("finance.categories", "create"),
+
+              type: "primary",
+              name: "Thêm",
+              onClick: () => {
+                resetForm();
+                setShowModal(true);
+              },
+              icon: <PlusOutlined />,
+            },
+            {
+              can: can("finance.categories", "create"),
+
+              type: "default",
+              name: "Xuất Excel",
+              onClick: handleExportExcel,
+              icon: <DownloadOutlined />,
+            },
+            {
+              type: "default",
+              name: "Nhập Excel",
+              onClick: handleImportExcel,
+              icon: <UploadOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm theo mã, tên danh mục...",
             filterKeys: ["categoryCode", "categoryName"],

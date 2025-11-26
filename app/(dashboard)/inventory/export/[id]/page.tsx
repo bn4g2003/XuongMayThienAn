@@ -2,11 +2,12 @@
 
 import CommonTable from "@/components/CommonTable";
 import ExportForm from "@/components/inventory/ExportForm";
+import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
-import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
 import { App, Button, Descriptions, Drawer, Modal, Tag } from "antd";
@@ -70,7 +71,7 @@ export default function ExportWarehousePage() {
 
   const columnsAll: TableColumnsType<ExportTransaction> = [
     {
-      title: "Mã phiếu",
+      title: "Mã",
       dataIndex: "transactionCode",
       key: "transactionCode",
       width: 140,
@@ -131,34 +132,13 @@ export default function ExportWarehousePage() {
       width: 200,
       fixed: "right",
       render: (_: unknown, record: ExportTransaction) => (
-        <div className="flex gap-2">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleView(record)}
-          >
-            Xem
-          </Button>
-          {record.status === "PENDING" && can("inventory.export", "edit") && (
-            <Button
-              type="link"
-              size="small"
-              onClick={() => handleApprove(record.id)}
-            >
-              Duyệt
-            </Button>
-          )}
-          <Button
-            type="link"
-            size="small"
-            onClick={() =>
-              window.open(`/api/inventory/export/${record.id}/pdf`, "_blank")
-            }
-          >
-            In
-          </Button>
-        </div>
+        <TableActions
+          onView={() => handleView(record)}
+          onPrint={() => () =>
+            window.open(`/api/inventory/export/${record.id}/pdf`, "_blank")}
+          onApprove={() => handleApprove(record.id)}
+          canApprove={can("inventory.export", "edit") && record.status === "PENDING"}
+        />
       ),
     },
   ];
@@ -253,16 +233,15 @@ export default function ExportWarehousePage() {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["inventory", "export", warehouseId],
-          buttonEnds: can("inventory.export", "create")
-            ? [
-                {
-                  type: "primary",
-                  name: "Tạo phiếu xuất",
-                  onClick: () => setCreateModalOpen(true),
-                  icon: <PlusOutlined />,
-                },
-              ]
-            : undefined,
+          buttonEnds: [
+            {
+              can: can("inventory.export", "create"),
+              type: "primary",
+              name: "Tạo phiếu",
+              onClick: () => setCreateModalOpen(true),
+              icon: <PlusOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm phiếu xuất",
             filterKeys: [

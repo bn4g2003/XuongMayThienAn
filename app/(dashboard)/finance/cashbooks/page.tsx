@@ -216,7 +216,7 @@ export default function CashBooksPage() {
 
   const columnsAll: TableColumnsType<CashBook> = [
     {
-      title: "Mã GD",
+      title: "Mã",
       dataIndex: "transactionCode",
       key: "transactionCode",
       width: 160,

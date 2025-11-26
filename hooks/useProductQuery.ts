@@ -108,7 +108,6 @@ export function useCategories() {
   return useQuery({
     queryKey: CATEGORY_KEYS.lists(),
     queryFn: categoryService.getAll,
-    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -171,7 +170,6 @@ export function useMaterials() {
   return useQuery({
     queryKey: MATERIAL_KEYS.lists(),
     queryFn: materialService.getAll,
-    staleTime: 5 * 60 * 1000,
   });
 }
 

@@ -44,6 +44,7 @@ interface WrapperContentProps<T extends object> {
     buttonBackTo?: string;
     refetchDataWithKeys?: string[] | readonly string[];
     buttonEnds?: {
+      can?: boolean;
       danger?: boolean;
       isLoading?: boolean;
       type?: "link" | "default" | "text" | "primary" | "dashed" | undefined;
@@ -85,7 +86,7 @@ function WrapperContent<T extends object>({
   const [formFilter] = Form.useForm();
 
   useSetTitlePage(title || "");
-  const [isOpenFilterModal, setIsOpenFilterModal] = useState(false);
+  // desktop will always show filters inline; no toggle button needed
   const [isOpenColumnSettings, setIsOpenColumnSettings] = useState(false);
   const [isMobileOptionsOpen, setIsMobileOptionsOpen] = useState(false);
   const breakpoint = useWindowBreakpoint();
@@ -155,270 +156,272 @@ function WrapperContent<T extends object>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, String(header.filters)]);
 
+  const LeftControls = ({ isMobile }: { isMobile: boolean }) => {
+    if (isMobile) {
+      return (
+        <div>
+          {header.buttonBackTo && (
+            <Button
+              disabled={isLoading || isRefetching}
+              type="default"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => router.push(header.buttonBackTo!)}
+            />
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-3">
+        {header.buttonBackTo && (
+          <Button
+            disabled={isLoading || isRefetching}
+            type="default"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => router.push(header.buttonBackTo!)}
+          >
+            Quay lại
+          </Button>
+        )}
+
+        {header.searchInput && (
+          <Input
+            style={{ width: 256 }}
+            value={searchTerm}
+            placeholder={header.searchInput.placeholder}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            prefix={<SearchOutlined />}
+            allowClear
+          />
+        )}
+
+        {/* Filters are rendered inline on desktop (see below) */}
+
+        {header.columnSettings && (
+          <Popover
+            trigger="click"
+            placement="bottomLeft"
+            content={
+              <div>
+                <div className=" flex  justify-between  items-center">
+                  <h3 className=" font-medium  mb-0">Cài đặt cột</h3>
+                  {header.columnSettings.onReset && (
+                    <Button
+                      disabled={isLoading || isRefetching}
+                      type="link"
+                      size="small"
+                      onClick={() => {
+                        if (header.columnSettings?.onReset) {
+                          header.columnSettings.onReset();
+                        }
+                      }}
+                    >
+                      Đặt lại
+                    </Button>
+                  )}
+                </div>
+                <Divider className=" my-2" />
+
+                <div className="grid grid-rows-5 grid-cols-3 gap-4">
+                  {header.columnSettings.columns.map((column) => (
+                    <Checkbox
+                      key={column.key}
+                      checked={column.visible}
+                      onChange={(e) => {
+                        const newColumns = header.columnSettings!.columns.map(
+                          (col) =>
+                            col.key === column.key
+                              ? { ...col, visible: e.target.checked }
+                              : col
+                        );
+                        header.columnSettings!.onChange(newColumns);
+                      }}
+                    >
+                      {column.title}
+                    </Checkbox>
+                  ))}
+                </div>
+              </div>
+            }
+            open={isOpenColumnSettings}
+            onOpenChange={setIsOpenColumnSettings}
+          >
+            <Tooltip title="Cài đặt cột">
+              <span>
+                <Button
+                  disabled={isLoading || isRefetching}
+                  type={hasActiveColumnSettings ? "primary" : "default"}
+                  icon={<SettingOutlined />}
+                />
+              </span>
+            </Tooltip>
+          </Popover>
+        )}
+
+        {hasFilters && header.filters?.onReset && (
+          <Tooltip title="Đặt lại bộ lọc">
+            <span>
+              <Button
+                disabled={isLoading || isRefetching}
+                onClick={handleResetFilters}
+                danger
+                icon={<DeleteOutlined />}
+              />
+            </span>
+          </Tooltip>
+        )}
+      </div>
+    );
+  };
+
+  const RightControls = ({ isMobile }: { isMobile: boolean }) => {
+    const sortedEnds = (header.buttonEnds || []).slice().sort((a, b) => {
+      if (a.type === "primary" && b.type !== "primary") return 1;
+      if (a.type !== "primary" && b.type === "primary") return -1;
+      return 0;
+    });
+
+    if (isMobile) {
+      return (
+        <div className="flex gap-2 items-center">
+          {header.refetchDataWithKeys && (
+            <Tooltip title="Tải lại dữ liệu">
+              <span>
+                <Button
+                  disabled={isLoading || isRefetching}
+                  type="default"
+                  icon={<SyncOutlined spin={isLoading} />}
+                  onClick={() => {
+                    if (header.refetchDataWithKeys) {
+                      queriesToInvalidate(header.refetchDataWithKeys);
+                    }
+                  }}
+                />
+              </span>
+            </Tooltip>
+          )}
+
+          {hasFilters && header.filters?.onReset && (
+            <Tooltip title="Đặt lại bộ lọc">
+              <span>
+                <Button
+                  disabled={isLoading || isRefetching}
+                  onClick={handleResetFilters}
+                  danger
+                  icon={<DeleteOutlined />}
+                />
+              </span>
+            </Tooltip>
+          )}
+
+          {sortedEnds.map((buttonEnd, index) => {
+            if (!buttonEnd.can) return null;
+            return (
+              <Tooltip key={index} title={buttonEnd.name}>
+                <span>
+                  <Button
+                    disabled={isLoading || isRefetching || buttonEnd.can}
+                    loading={buttonEnd.isLoading}
+                    danger={buttonEnd.danger}
+                    type={buttonEnd.type}
+                    onClick={buttonEnd.onClick}
+                    icon={buttonEnd.icon}
+                  />
+                </span>
+              </Tooltip>
+            );
+          })}
+
+          {(header.searchInput || header.filters || header.columnSettings) && (
+            <Tooltip title="Tùy chọn">
+              <Button
+                disabled={isLoading || isRefetching}
+                type={
+                  hasActiveFilters || hasActiveColumnSettings
+                    ? "primary"
+                    : "default"
+                }
+                icon={<FilterOutlined />}
+                onClick={() => setIsMobileOptionsOpen(true)}
+              />
+            </Tooltip>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex gap-3 items-center">
+        {header.refetchDataWithKeys && (
+          <Tooltip title="Tải lại dữ liệu">
+            <span>
+              <Button
+                disabled={isLoading || isRefetching}
+                type="default"
+                icon={<SyncOutlined spin={isLoading || isRefetching} />}
+                onClick={() => {
+                  if (header.refetchDataWithKeys) {
+                    queriesToInvalidate(header.refetchDataWithKeys);
+                  }
+                }}
+              />
+            </span>
+          </Tooltip>
+        )}
+
+        {sortedEnds.map((buttonEnd, index) => (
+          <Tooltip key={index} title={buttonEnd.name}>
+            <span>
+              <Button
+                disabled={
+                  isLoading || buttonEnd.type === "primary"
+                    ? isLoading
+                    : isRefetching
+                }
+                loading={buttonEnd.isLoading}
+                danger={buttonEnd.danger}
+                type={buttonEnd.type}
+                onClick={buttonEnd.onClick}
+                icon={buttonEnd.icon}
+              >
+                {buttonEnd.name}
+              </Button>
+            </span>
+          </Tooltip>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className={`space-y-10 ${className}`}>
       <div className="flex items-center justify-between">
         {!isMobileView ? (
           <>
-            <div className="flex items-center gap-3">
-              {header.buttonBackTo && (
-                <Button
-                  disabled={isLoading || isRefetching}
-                  type="default"
-                  icon={<ArrowLeftOutlined />}
-                  onClick={() => router.push(header.buttonBackTo!)}
-                >
-                  Quay lại
-                </Button>
-              )}
-              {header.searchInput && (
-                <Input
-                  style={{ width: 256 }}
-                  value={searchTerm}
-                  placeholder={header.searchInput.placeholder}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  prefix={<SearchOutlined />}
-                  allowClear
-                />
-              )}
-              {header.filters && header.filters?.fields && (
-                <Form.Provider>
-                  <Popover
-                    trigger="click"
-                    placement="bottomLeft"
-                    content={
-                      <FilterList
-                        form={formFilter}
-                        onCancel={() => setIsOpenFilterModal(false)}
-                        fields={header.filters.fields}
-                        onApplyFilter={(arr) =>
-                          header.filters?.onApplyFilter(arr)
-                        }
-                        onReset={() =>
-                          header.filters?.onReset && header.filters.onReset()
-                        }
-                      />
-                    }
-                    open={isOpenFilterModal}
-                    onOpenChange={setIsOpenFilterModal}
-                  >
-                    <Tooltip title="Bộ lọc">
-                      <span>
-                        <Button
-                          disabled={isLoading || isRefetching}
-                          type={hasActiveFilters ? "primary" : "default"}
-                          icon={<FilterOutlined />}
-                        />
-                      </span>
-                    </Tooltip>
-                  </Popover>
-                </Form.Provider>
-              )}
-
-              {header.columnSettings && (
-                <Popover
-                  trigger="click"
-                  placement="bottomLeft"
-                  content={
-                    <div>
-                      <div className=" flex  justify-between  items-center">
-                        <h3 className=" font-medium  mb-0">Cài đặt cột</h3>
-                        {header.columnSettings.onReset && (
-                          <Button
-                            disabled={isLoading || isRefetching}
-                            type="link"
-                            size="small"
-                            onClick={() => {
-                              if (header.columnSettings?.onReset) {
-                                header.columnSettings.onReset();
-                              }
-                            }}
-                          >
-                            Đặt lại
-                          </Button>
-                        )}
-                      </div>
-                      <Divider className=" my-2" />
-
-                      <div className="grid grid-rows-5 grid-cols-3 gap-4">
-                        {header.columnSettings.columns.map((column) => (
-                          <Checkbox
-                            key={column.key}
-                            checked={column.visible}
-                            onChange={(e) => {
-                              const newColumns =
-                                header.columnSettings!.columns.map((col) =>
-                                  col.key === column.key
-                                    ? { ...col, visible: e.target.checked }
-                                    : col
-                                );
-                              header.columnSettings!.onChange(newColumns);
-                            }}
-                          >
-                            {column.title}
-                          </Checkbox>
-                        ))}
-                      </div>
-                    </div>
-                  }
-                  open={isOpenColumnSettings}
-                  onOpenChange={setIsOpenColumnSettings}
-                >
-                  <Tooltip title="Cài đặt cột">
-                    <span>
-                      <Button
-                        disabled={isLoading || isRefetching}
-                        type={hasActiveColumnSettings ? "primary" : "default"}
-                        icon={<SettingOutlined />}
-                      />
-                    </span>
-                  </Tooltip>
-                </Popover>
-              )}
-              {hasFilters && header.filters?.onReset && (
-                <Tooltip title="Đặt lại bộ lọc">
-                  <span>
-                    <Button
-                      disabled={isLoading || isRefetching}
-                      onClick={handleResetFilters}
-                      danger
-                      icon={<DeleteOutlined />}
-                    />
-                  </span>
-                </Tooltip>
-              )}
-            </div>
-            <div className="flex gap-3 items-center">
-              {header.refetchDataWithKeys && (
-                <Tooltip title="Tải lại dữ liệu">
-                  <span>
-                    <Button
-                      disabled={isLoading || isRefetching}
-                      type="default"
-                      icon={<SyncOutlined spin={isLoading || isRefetching} />}
-                      onClick={() => {
-                        if (header.refetchDataWithKeys) {
-                          queriesToInvalidate(header.refetchDataWithKeys);
-                        }
-                      }}
-                    />
-                  </span>
-                </Tooltip>
-              )}
-              {header.buttonEnds &&
-                header.buttonEnds
-                  .sort((a, b) => {
-                    if (a.type === "primary" && b.type !== "primary") return 1;
-                    if (a.type !== "primary" && b.type === "primary") return -1;
-                    return 0;
-                  })
-                  .map((buttonEnd, index) => (
-                    <Tooltip key={index} title={buttonEnd.name}>
-                      <span>
-                        <Button
-                          disabled={
-                            isLoading || buttonEnd.type === "primary"
-                              ? isLoading
-                              : isRefetching
-                          }
-                          loading={buttonEnd.isLoading}
-                          danger={buttonEnd.danger}
-                          type={buttonEnd.type}
-                          onClick={buttonEnd.onClick}
-                          icon={buttonEnd.icon}
-                        >
-                          {buttonEnd.name}
-                        </Button>
-                      </span>
-                    </Tooltip>
-                  ))}
-            </div>
+            <LeftControls isMobile={false} />
+            <RightControls isMobile={false} />
           </>
         ) : (
           <>
-            <div>
-              {header.buttonBackTo && (
-                <Button
-                  disabled={isLoading || isRefetching}
-                  type="default"
-                  icon={<ArrowLeftOutlined />}
-                  onClick={() => router.push(header.buttonBackTo!)}
-                />
-              )}
-            </div>
-            <div className="flex gap-2 items-center">
-              {header.refetchDataWithKeys && (
-                <Tooltip title="Tải lại dữ liệu">
-                  <span>
-                    <Button
-                      disabled={isLoading || isRefetching}
-                      type="default"
-                      icon={<SyncOutlined spin={isLoading} />}
-                      onClick={() => {
-                        if (header.refetchDataWithKeys) {
-                          queriesToInvalidate(header.refetchDataWithKeys);
-                        }
-                      }}
-                    />
-                  </span>
-                </Tooltip>
-              )}
-
-              {hasFilters && header.filters?.onReset && (
-                <Tooltip title="Đặt lại bộ lọc">
-                  <span>
-                    <Button
-                      disabled={isLoading || isRefetching}
-                      onClick={handleResetFilters}
-                      danger
-                      icon={<DeleteOutlined />}
-                    />
-                  </span>
-                </Tooltip>
-              )}
-
-              {header.buttonEnds &&
-                header.buttonEnds
-                  .sort((a, b) => {
-                    if (a.type === "primary" && b.type !== "primary") return 1;
-                    if (a.type !== "primary" && b.type === "primary") return -1;
-                    return 0;
-                  })
-                  .map((buttonEnd, index) => (
-                    <Tooltip key={index} title={buttonEnd.name}>
-                      <span>
-                        <Button
-                          disabled={isLoading || isRefetching}
-                          loading={buttonEnd.isLoading}
-                          danger={buttonEnd.danger}
-                          type={buttonEnd.type}
-                          onClick={buttonEnd.onClick}
-                          icon={buttonEnd.icon}
-                        />
-                      </span>
-                    </Tooltip>
-                  ))}
-
-              {(header.searchInput ||
-                header.filters ||
-                header.columnSettings) && (
-                <Tooltip title="Tùy chọn">
-                  <Button
-                    disabled={isLoading || isRefetching}
-                    type={
-                      hasActiveFilters || hasActiveColumnSettings
-                        ? "primary"
-                        : "default"
-                    }
-                    icon={<FilterOutlined />}
-                    onClick={() => setIsMobileOptionsOpen(true)}
-                  />
-                </Tooltip>
-              )}
-            </div>
+            <LeftControls isMobile={true} />
+            <RightControls isMobile={true} />
           </>
         )}
       </div>
+
+      {/* Desktop inline filter panel (always visible on desktop) */}
+      {!isMobileView && header.filters && header.filters.fields && (
+        <div className="mt-4">
+          <FilterList
+            form={formFilter}
+            fields={header.filters?.fields || []}
+            onApplyFilter={(arr) => header.filters?.onApplyFilter(arr)}
+            onReset={() => header.filters?.onReset && header.filters.onReset()}
+            instant
+          />
+        </div>
+      )}
 
       {/* Mobile modal for filters / settings */}
       <Modal

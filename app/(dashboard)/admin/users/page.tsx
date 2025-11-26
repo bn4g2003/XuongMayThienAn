@@ -1,6 +1,7 @@
 "use client";
 
 import CommonTable from "@/components/CommonTable";
+import TableActions from "@/components/TableActions";
 import UserDetailDrawer from "@/components/users/UserDetailDrawer";
 import UserFormModal, {
   type UserFormValues,
@@ -20,19 +21,15 @@ import {
 import { branchService, roleService } from "@/services/commonService";
 import type { User } from "@/services/userService";
 import {
-  DeleteOutlined,
   DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
   LockOutlined,
-  MoreOutlined,
   PlusOutlined,
   UnlockOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
-import { App, Button, Dropdown, Tag } from "antd";
+import { App, Tag } from "antd";
 import { useState } from "react";
 
 export default function UsersPage() {
@@ -62,7 +59,10 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' });
+  const [passwordForm, setPasswordForm] = useState({
+    newPassword: "",
+    confirmPassword: "",
+  });
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   const { modal } = App.useApp();
   const handleView = (user: User) => {
@@ -95,7 +95,7 @@ export default function UsersPage() {
 
   const handleChangePassword = (user: User) => {
     setSelectedUser(user);
-    setPasswordForm({ newPassword: '', confirmPassword: '' });
+    setPasswordForm({ newPassword: "", confirmPassword: "" });
     setPasswordModalVisible(true);
   };
 
@@ -104,24 +104,24 @@ export default function UsersPage() {
 
     if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
       modal.error({
-        title: 'Lỗi',
-        content: 'Vui lòng nhập đầy đủ thông tin'
+        title: "Lỗi",
+        content: "Vui lòng nhập đầy đủ thông tin",
       });
       return;
     }
 
     if (passwordForm.newPassword.length < 6) {
       modal.error({
-        title: 'Lỗi',
-        content: 'Mật khẩu phải có ít nhất 6 ký tự'
+        title: "Lỗi",
+        content: "Mật khẩu phải có ít nhất 6 ký tự",
       });
       return;
     }
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       modal.error({
-        title: 'Lỗi',
-        content: 'Mật khẩu xác nhận không khớp'
+        title: "Lỗi",
+        content: "Mật khẩu xác nhận không khớp",
       });
       return;
     }
@@ -129,30 +129,30 @@ export default function UsersPage() {
     try {
       setPasswordSubmitting(true);
       const res = await fetch(`/api/admin/users/${selectedUser.id}/password`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPassword: passwordForm.newPassword })
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: passwordForm.newPassword }),
       });
 
       const data = await res.json();
 
       if (data.success) {
         modal.success({
-          title: 'Thành công',
-          content: 'Đã đổi mật khẩu thành công'
+          title: "Thành công",
+          content: "Đã đổi mật khẩu thành công",
         });
         setPasswordModalVisible(false);
-        setPasswordForm({ newPassword: '', confirmPassword: '' });
+        setPasswordForm({ newPassword: "", confirmPassword: "" });
       } else {
         modal.error({
-          title: 'Lỗi',
-          content: data.error || 'Có lỗi xảy ra'
+          title: "Lỗi",
+          content: data.error || "Có lỗi xảy ra",
         });
       }
     } catch (error) {
       modal.error({
-        title: 'Lỗi',
-        content: 'Có lỗi xảy ra khi đổi mật khẩu'
+        title: "Lỗi",
+        content: "Có lỗi xảy ra khi đổi mật khẩu",
       });
     } finally {
       setPasswordSubmitting(false);
@@ -226,50 +226,25 @@ export default function UsersPage() {
     {
       title: "Thao tác",
       key: "action",
-      width: 100,
+      width: 180,
       fixed: "right",
       render: (_: unknown, record: User) => {
-        const menuItems = [
-          {
-            key: "view",
-            label: "Xem",
-            icon: <EyeOutlined />,
-            onClick: () => handleView(record),
-          },
-        ];
-
-        if (can("admin.users", "edit")) {
-          menuItems.push({
-            key: "edit",
-            label: "Sửa",
-            icon: <EditOutlined />,
-            onClick: () => handleEdit(record),
-          });
-          menuItems.push({
-            key: "password",
-            label: "Đổi mật khẩu",
-            icon: <LockOutlined />,
-            onClick: () => handleChangePassword(record),
-          });
-        }
-
-        if (can("admin.users", "delete")) {
-          menuItems.push({
-            key: "delete",
-            label: "Xóa",
-            icon: <DeleteOutlined />,
-            onClick: () => handleDelete(record.id),
-          });
-        }
-
         return (
-          <Dropdown
-            menu={{ items: menuItems }}
-            trigger={["click"]}
-            placement="bottomLeft"
-          >
-            <Button type="text" icon={<MoreOutlined />} size="small" />
-          </Dropdown>
+          <TableActions
+            onView={() => handleView(record)}
+            onEdit={() => handleEdit(record)}
+            onDelete={() => handleDelete(record.id)}
+            extraActions={[
+              {
+                title: "Đổi mật khẩu",
+                can: can("admin.users", "edit"),
+                onClick: () => handleChangePassword(record),
+                icon: <LockOutlined />,
+              },
+            ]}
+            canEdit={can("admin.users", "edit")}
+            canDelete={can("admin.users", "delete")}
+          />
         );
       },
     },
@@ -287,33 +262,35 @@ export default function UsersPage() {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: USER_KEYS.all,
-          buttonEnds: can("admin.users", "create")
-            ? [
-                {
-                  type: "primary",
-                  name: "Thêm",
-                  onClick: handleCreate,
-                  icon: <PlusOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Xuất Excel",
-                  onClick: () => {
-                    exportToXlsx(
-                      filteredUsers,
-                      `nguoi_dung_${new Date().toISOString()}.xlsx`
-                    );
-                  },
-                  icon: <DownloadOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Nhập Excel",
-                  onClick: () => {},
-                  icon: <UploadOutlined />,
-                },
-              ]
-            : undefined,
+          buttonEnds: [
+            {
+              can: can("admin.users", "create"),
+              type: "primary",
+              name: "Thêm",
+              onClick: handleCreate,
+              icon: <PlusOutlined />,
+            },
+            {
+              can: can("admin.users", "create"),
+
+              type: "default",
+              name: "Xuất Excel",
+              onClick: () => {
+                exportToXlsx(
+                  filteredUsers,
+                  `nguoi_dung_${new Date().toISOString()}.xlsx`
+                );
+              },
+              icon: <DownloadOutlined />,
+            },
+            {
+              can: can("admin.users", "create"),
+              type: "default",
+              name: "Nhập Excel",
+              onClick: () => {},
+              icon: <UploadOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm người dùng",
             filterKeys: ["fullName", "username", "branchName", "roleName"],
@@ -406,7 +383,8 @@ export default function UsersPage() {
 
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
               <p className="text-sm text-gray-700">
-                <strong>Người dùng:</strong> {selectedUser?.fullName} ({selectedUser?.username})
+                <strong>Người dùng:</strong> {selectedUser?.fullName} (
+                {selectedUser?.username})
               </p>
             </div>
 
@@ -418,7 +396,12 @@ export default function UsersPage() {
                 <input
                   type="password"
                   value={passwordForm.newPassword}
-                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      newPassword: e.target.value,
+                    })
+                  }
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500"
                   placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
                   disabled={passwordSubmitting}
@@ -432,7 +415,12 @@ export default function UsersPage() {
                 <input
                   type="password"
                   value={passwordForm.confirmPassword}
-                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      confirmPassword: e.target.value,
+                    })
+                  }
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500"
                   placeholder="Nhập lại mật khẩu mới"
                   disabled={passwordSubmitting}
@@ -453,7 +441,7 @@ export default function UsersPage() {
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                 disabled={passwordSubmitting}
               >
-                {passwordSubmitting ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+                {passwordSubmitting ? "Đang xử lý..." : "Đổi mật khẩu"}
               </button>
             </div>
           </div>

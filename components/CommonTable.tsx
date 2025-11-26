@@ -63,6 +63,8 @@ const CommonTable = <T extends object>({
       if (scrollTop + windowHeight >= documentHeight) {
         if (pagingRef.current) {
           pagingRef.current.style.backgroundColor = "transparent";
+          pagingRef.current.style.opacity = "0.95";
+          pagingRef.current.style.backdropFilter = "blur(30px)";
         }
       } else if (pagingRef.current) {
         pagingRef.current.style.opacity = "0.95";
@@ -91,7 +93,7 @@ const CommonTable = <T extends object>({
       {paging && (
         <Space
           ref={pagingRef}
-          className="sticky bottom-0 flex w-full justify-end py-3"
+          className="sticky bottom-0 flex w-full z-50 justify-end py-3"
         >
           <Pagination
             onChange={handlePageChange}

@@ -1,6 +1,7 @@
 "use client";
 
 import CommonTable from "@/components/CommonTable";
+import TableActions from "@/components/TableActions";
 import WarehouseForm from "@/components/WarehouseForm";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
@@ -15,17 +16,13 @@ import {
   WarehouseOptions,
 } from "@/types/warehouse";
 import {
-  DeleteOutlined,
   DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
-  MoreOutlined,
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
-import { App, Button, Descriptions, Drawer, Dropdown, Modal, Tag } from "antd";
+import { App, Descriptions, Drawer, Modal, Tag } from "antd";
 import { useState } from "react";
 
 export default function WarehousesPage() {
@@ -139,19 +136,19 @@ export default function WarehousesPage() {
 
   const columnsAll: TableColumnsType<Warehouse> = [
     {
-      title: "Mã kho",
+      title: "Mã",
       dataIndex: "warehouseCode",
       key: "warehouseCode",
       width: 140,
     },
     {
-      title: "Tên kho",
+      title: "Tên",
       dataIndex: "warehouseName",
       key: "warehouseName",
       width: 220,
     },
     {
-      title: "Loại kho",
+      title: "Loại",
       dataIndex: "warehouseType",
       key: "warehouseType",
       width: 160,
@@ -183,37 +180,14 @@ export default function WarehousesPage() {
       width: 120,
       fixed: "right",
       render: (_value: unknown, record: Warehouse) => {
-        const menuItems = [
-          {
-            key: "view",
-            label: "Xem",
-            onClick: () => handleView(record),
-            icon: <EyeOutlined />,
-          },
-        ];
-        if (can("admin.warehouses", "edit"))
-          menuItems.push({
-            key: "edit",
-            label: "Sửa",
-            onClick: () => handleEdit(record),
-            icon: <EditOutlined />,
-          });
-        if (can("admin.warehouses", "delete"))
-          menuItems.push({
-            key: "delete",
-            label: "Xóa",
-            onClick: () => handleDelete(record.id),
-            icon: <DeleteOutlined />,
-          });
-
         return (
-          <Dropdown
-            menu={{ items: menuItems }}
-            trigger={["click"]}
-            placement="bottomLeft"
-          >
-            <Button type="text" icon={<MoreOutlined />} size="small" />
-          </Dropdown>
+          <TableActions
+            onView={() => handleView(record)}
+            onEdit={() => handleEdit(record)}
+            onDelete={() => handleDelete(record.id)}
+            canEdit={can("admin.warehouses", "edit")}
+            canDelete={can("admin.warehouses", "delete")}
+          />
         );
       },
     },
@@ -232,33 +206,36 @@ export default function WarehousesPage() {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["warehouses"],
-          buttonEnds: can("admin.warehouses", "create")
-            ? [
-                {
-                  type: "primary",
-                  name: "Thêm",
-                  onClick: handleCreate,
-                  icon: <PlusOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Xuất Excel",
-                  onClick: () => {
-                    exportToXlsx(
-                      filtered,
-                      `kho_hang_${new Date().toISOString()}.xlsx`
-                    );
-                  },
-                  icon: <DownloadOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Nhập Excel",
-                  onClick: () => {},
-                  icon: <UploadOutlined />,
-                },
-              ]
-            : undefined,
+          buttonEnds: [
+            {
+              can: can("admin.warehouses", "create"),
+              type: "primary",
+              name: "Thêm",
+              onClick: handleCreate,
+              icon: <PlusOutlined />,
+            },
+            {
+              can: can("admin.warehouses", "create"),
+
+              type: "default",
+              name: "Xuất Excel",
+              onClick: () => {
+                exportToXlsx(
+                  filtered,
+                  `kho_hang_${new Date().toISOString()}.xlsx`
+                );
+              },
+              icon: <DownloadOutlined />,
+            },
+            {
+              can: can("admin.warehouses", "create"),
+
+              type: "default",
+              name: "Nhập Excel",
+              onClick: () => {},
+              icon: <UploadOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm kho",
             filterKeys: [

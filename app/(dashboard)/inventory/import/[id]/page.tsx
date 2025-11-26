@@ -2,11 +2,12 @@
 
 import CommonTable from "@/components/CommonTable";
 import ImportForm from "@/components/inventory/ImportForm";
+import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
-import { EyeOutlined, PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
 import { App, Button, Descriptions, Drawer, Modal, Tag } from "antd";
@@ -81,7 +82,7 @@ export default function ImportWarehousePage() {
 
   const columnsAll: TableColumnsType<ImportTransaction> = [
     {
-      title: "Mã phiếu",
+      title: "Mã",
       dataIndex: "transactionCode",
       key: "transactionCode",
       width: 140,
@@ -142,34 +143,19 @@ export default function ImportWarehousePage() {
       width: 200,
       fixed: "right",
       render: (_: unknown, record: ImportTransaction) => (
-        <div className="flex gap-2">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleView(record)}
-          >
-            Xem
-          </Button>
-          {record.status === "PENDING" && can("inventory.import", "edit") && (
-            <Button
-              type="link"
-              size="small"
-              onClick={() => handleApprove(record.id)}
-            >
-              Duyệt
-            </Button>
-          )}
-          <Button
-            type="link"
-            size="small"
-            onClick={() =>
-              window.open(`/api/inventory/import/${record.id}/pdf`, "_blank")
-            }
-          >
-            In
-          </Button>
-        </div>
+        <TableActions
+          onView={() => handleView(record)}
+          onApprove={() => handleApprove(record.id)}
+          onDelete={() => handleDelete(record.id)}
+
+          onPrint={() =>
+            window.open(`/api/inventory/import/${record.id}/pdf`, "_blank")
+          }
+          canDelete={can("inventory.import", "delete")}
+          canApprove={
+            can("inventory.import", "edit") && record.status === "PENDING"
+          }
+        />
       ),
     },
   ];
@@ -264,16 +250,15 @@ export default function ImportWarehousePage() {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["inventory", "import", warehouseId],
-          buttonEnds: can("inventory.import", "create")
-            ? [
-                {
-                  type: "primary",
-                  name: "Tạo phiếu nhập",
-                  onClick: () => setCreateModalOpen(true),
-                  icon: <PlusOutlined />,
-                },
-              ]
-            : undefined,
+          buttonEnds: [
+            {
+              can: can("inventory.import", "create"),
+              type: "primary",
+              name: "Tạo phiếu nhập",
+              onClick: () => setCreateModalOpen(true),
+              icon: <PlusOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm phiếu nhập",
             filterKeys: ["transactionCode", "toWarehouseName", "createdByName"],

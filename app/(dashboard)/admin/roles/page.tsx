@@ -1,16 +1,13 @@
 "use client";
 
 import CommonTable from "@/components/CommonTable";
+import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
-  DeleteOutlined,
   DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
-  MoreOutlined,
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
@@ -21,7 +18,6 @@ import {
   Button,
   Descriptions,
   Drawer,
-  Dropdown,
   Form,
   Input,
   Modal,
@@ -162,13 +158,13 @@ export default function RolesPage() {
 
   const columnsAll: TableColumnsType<Role> = [
     {
-      title: "Mã vai trò",
+      title: "Mã",
       dataIndex: "roleCode",
       key: "roleCode",
       width: 140,
     },
     {
-      title: "Tên vai trò",
+      title: "Tên",
       dataIndex: "roleName",
       key: "roleName",
       width: 220,
@@ -186,7 +182,10 @@ export default function RolesPage() {
           4: { text: "Level 4", color: "orange" },
           5: { text: "Level 5", color: "red" },
         };
-        const info = levelMap[level] || { text: `Level ${level}`, color: "default" };
+        const info = levelMap[level] || {
+          text: `Level ${level}`,
+          color: "default",
+        };
         return <Tag color={info.color}>{info.text}</Tag>;
       },
     },
@@ -202,7 +201,7 @@ export default function RolesPage() {
       ),
     },
     {
-      title: "Số người dùng",
+      title: "Lượng người dùng",
       dataIndex: "userCount",
       key: "userCount",
       width: 140,
@@ -213,41 +212,14 @@ export default function RolesPage() {
       width: 120,
       fixed: "right",
       render: (_value: unknown, record: Role) => {
-        const menuItems = [
-          {
-            key: "view",
-            label: "Xem",
-            icon: <EyeOutlined />,
-            onClick: () => handleView(record),
-          },
-        ];
-        // Chỉ cho edit nếu có quyền VÀ (là ADMIN hoặc role level <= 3)
-        const canEditThisRole = can("admin.roles", "edit") &&
-          (isAdmin || record.level <= 3);
-
-        if (canEditThisRole)
-          menuItems.push({
-            key: "edit",
-            label: "Sửa",
-            icon: <EditOutlined />,
-            onClick: () => handleEdit(record),
-          });
-        if (can("admin.roles", "delete") && record.userCount === 0)
-          menuItems.push({
-            key: "delete",
-            label: "Xóa",
-            icon: <DeleteOutlined />,
-            onClick: () => handleDelete(record.id),
-          });
-
         return (
-          <Dropdown
-            menu={{ items: menuItems }}
-            trigger={["click"]}
-            placement="bottomLeft"
-          >
-            <Button type="text" icon={<MoreOutlined />} size="small" />
-          </Dropdown>
+          <TableActions
+            onView={() => handleView(record)}
+            onEdit={() => handleEdit(record)}
+            onDelete={() => handleDelete(record.id)}
+            canEdit={can("admin.roles", "edit")}
+            canDelete={can("admin.roles", "delete")}
+          />
         );
       },
     },
@@ -263,28 +235,30 @@ export default function RolesPage() {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["roles"],
-          buttonEnds: can("admin.roles", "create")
-            ? [
-                {
-                  type: "primary",
-                  name: "Thêm",
-                  onClick: handleCreate,
-                  icon: <PlusOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Xuất Excel",
-                  onClick: () => {},
-                  icon: <DownloadOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Nhập Excel",
-                  onClick: () => {},
-                  icon: <UploadOutlined />,
-                },
-              ]
-            : undefined,
+          buttonEnds: [
+            {
+              can: can("admin.roles", "create"),
+              type: "primary",
+              name: "Thêm",
+              onClick: handleCreate,
+              icon: <PlusOutlined />,
+            },
+            {
+              can: can("admin.roles", "create"),
+
+              type: "default",
+              name: "Xuất Excel",
+              onClick: () => {},
+              icon: <DownloadOutlined />,
+            },
+            {
+              can: can("admin.roles", "create"),
+              type: "default",
+              name: "Nhập Excel",
+              onClick: () => {},
+              icon: <UploadOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm vai trò",
             filterKeys: ["roleName", "roleCode", "description"],
@@ -413,7 +387,9 @@ function RoleForm({
           <option value={3}>Level 3 - Trưởng nhóm (Xem + Tạo + Sửa)</option>
           {isAdmin && (
             <>
-              <option value={4}>Level 4 - Quản lý (Xem + Tạo + Sửa + Xóa)</option>
+              <option value={4}>
+                Level 4 - Quản lý (Xem + Tạo + Sửa + Xóa)
+              </option>
               <option value={5}>Level 5 - Giám đốc (Full quyền)</option>
             </>
           )}
@@ -423,11 +399,12 @@ function RoleForm({
         <p className="font-medium text-blue-900 mb-1">💡 Quyền tự động</p>
         <p className="text-blue-700">
           Khi tạo/sửa role, hệ thống sẽ tự động cấp quyền theo cấp độ đã chọn.
-          Bạn có thể tinh chỉnh thêm ở trang "Phân quyền".
+          Bạn có thể tinh chỉnh thêm ở trang &quot;Phân quyền&quot;.
         </p>
         {!isAdmin && (
           <p className="text-orange-600 mt-2">
-            ⚠️ Bạn chỉ có thể tạo/sửa vai trò Level 1-3. Liên hệ Admin để tạo vai trò cấp cao hơn.
+            ⚠️ Bạn chỉ có thể tạo/sửa vai trò Level 1-3. Liên hệ Admin để tạo
+            vai trò cấp cao hơn.
           </p>
         )}
       </div>

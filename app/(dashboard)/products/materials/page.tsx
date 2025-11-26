@@ -1,17 +1,14 @@
 "use client";
 
 import CommonTable from "@/components/CommonTable";
+import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import { useBranches } from "@/hooks/useCommonQuery";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
-  DeleteOutlined,
   DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
-  MoreOutlined,
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
@@ -22,7 +19,6 @@ import {
   Button,
   Descriptions,
   Drawer,
-  Dropdown,
   Form,
   Input,
   Modal,
@@ -196,13 +192,13 @@ export default function MaterialsPage() {
 
   const columnsAll: TableColumnsType<Material> = [
     {
-      title: "Mã NVL",
+      title: "Mã",
       dataIndex: "materialCode",
       key: "materialCode",
       width: 120,
     },
     {
-      title: "Tên nguyên vật liệu",
+      title: "Tên",
       dataIndex: "materialName",
       key: "materialName",
       width: 180,
@@ -232,37 +228,14 @@ export default function MaterialsPage() {
       width: 120,
       fixed: "right",
       render: (_value: unknown, record: Material) => {
-        const menuItems = [
-          {
-            key: "view",
-            label: "Xem",
-            icon: <EyeOutlined />,
-            onClick: () => handleView(record),
-          },
-        ];
-        if (can("products.materials", "edit"))
-          menuItems.push({
-            key: "edit",
-            label: "Sửa",
-            icon: <EditOutlined />,
-            onClick: () => handleEdit(record),
-          });
-        if (can("products.materials", "delete"))
-          menuItems.push({
-            key: "delete",
-            label: "Xóa",
-            icon: <DeleteOutlined />,
-            onClick: () => handleDelete(record.id),
-          });
-
         return (
-          <Dropdown
-            menu={{ items: menuItems }}
-            trigger={["click"]}
-            placement="bottomLeft"
-          >
-            <Button type="text" icon={<MoreOutlined />} size="small" />
-          </Dropdown>
+          <TableActions
+            onView={() => handleView(record)}
+            onEdit={() => handleEdit(record)}
+            onDelete={() => handleDelete(record.id)}
+            canEdit={can("products.materials", "edit")}
+            canDelete={can("products.materials", "delete")}
+          />
         );
       },
     },
@@ -279,28 +252,31 @@ export default function MaterialsPage() {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: ["materials"],
-          buttonEnds: can("products.materials", "create")
-            ? [
-                {
-                  type: "primary",
-                  name: "Thêm",
-                  onClick: handleCreate,
-                  icon: <PlusOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Xuất Excel",
-                  onClick: () => {},
-                  icon: <DownloadOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Nhập Excel",
-                  onClick: () => {},
-                  icon: <UploadOutlined />,
-                },
-              ]
-            : undefined,
+          buttonEnds: [
+            {
+              can: can("products.materials", "create"),
+              type: "primary",
+              name: "Thêm",
+              onClick: handleCreate,
+              icon: <PlusOutlined />,
+            },
+            {
+              can: can("products.materials", "create"),
+
+              type: "default",
+              name: "Xuất Excel",
+              onClick: () => {},
+              icon: <DownloadOutlined />,
+            },
+            {
+              can: can("products.materials", "create"),
+
+              type: "default",
+              name: "Nhập Excel",
+              onClick: () => {},
+              icon: <UploadOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm nguyên vật liệu",
             filterKeys: ["materialName", "materialCode", "description", "unit"],

@@ -5,6 +5,7 @@ import CustomerDetailDrawer from "@/components/customers/CustomerDetailDrawer";
 import CustomerFormModal, {
   type CustomerFormValues,
 } from "@/components/customers/CustomerFormModal";
+import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
 import {
@@ -19,18 +20,14 @@ import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { Customer } from "@/services/customerService";
 import {
-  DeleteOutlined,
   DownloadOutlined,
-  EditOutlined,
-  EyeOutlined,
   LockOutlined,
-  MoreOutlined,
   PlusOutlined,
   UnlockOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
-import { App, Button, Dropdown, Tag } from "antd";
+import { App, Tag } from "antd";
 import { useState } from "react";
 
 export default function CustomersPage() {
@@ -125,14 +122,14 @@ export default function CustomersPage() {
 
   const columnsAll: TableColumnsType<Customer> = [
     {
-      title: "Mã KH",
+      title: "Mã",
       dataIndex: "customerCode",
       key: "customerCode",
       width: 120,
       fixed: "left",
     },
     {
-      title: "Tên khách hàng",
+      title: "Tên",
       dataIndex: "customerName",
       key: "customerName",
       width: 200,
@@ -156,7 +153,7 @@ export default function CustomersPage() {
       width: 200,
     },
     {
-      title: "Nhóm KH",
+      title: "Nhóm",
       dataIndex: "groupName",
       key: "groupName",
       width: 150,
@@ -193,41 +190,14 @@ export default function CustomersPage() {
       width: 100,
       fixed: "right",
       render: (_: unknown, record: Customer) => {
-        const menuItems = [
-          {
-            key: "view",
-            label: "Xem",
-            icon: <EyeOutlined />,
-            onClick: () => handleView(record),
-          },
-        ];
-
-        if (can("sales.customers", "edit")) {
-          menuItems.push({
-            key: "edit",
-            label: "Sửa",
-            icon: <EditOutlined />,
-            onClick: () => handleEdit(record),
-          });
-        }
-
-        if (can("sales.customers", "delete")) {
-          menuItems.push({
-            key: "delete",
-            label: "Xóa",
-            icon: <DeleteOutlined />,
-            onClick: () => handleDelete(record.id),
-          });
-        }
-
         return (
-          <Dropdown
-            menu={{ items: menuItems }}
-            trigger={["click"]}
-            placement="bottomLeft"
-          >
-            <Button type="text" icon={<MoreOutlined />} size="small" />
-          </Dropdown>
+          <TableActions
+            onView={() => handleView(record)}
+            onEdit={() => handleEdit(record)}
+            onDelete={() => handleDelete(record.id)}
+            canEdit={can("sales.customers", "edit")}
+            canDelete={can("sales.customers", "delete")}
+          />
         );
       },
     },
@@ -244,28 +214,30 @@ export default function CustomersPage() {
         isLoading={isLoading}
         header={{
           refetchDataWithKeys: CUSTOMER_KEYS.all,
-          buttonEnds: can("sales.customers", "create")
-            ? [
-                {
-                  type: "primary",
-                  name: "Thêm",
-                  onClick: handleCreate,
-                  icon: <PlusOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Xuất Excel",
-                  onClick: handleExportExcel,
-                  icon: <DownloadOutlined />,
-                },
-                {
-                  type: "default",
-                  name: "Nhập Excel",
-                  onClick: handleImportExcel,
-                  icon: <UploadOutlined />,
-                },
-              ]
-            : undefined,
+          buttonEnds: [
+            {
+              can: can("sales.customers", "create"),
+              type: "primary",
+              name: "Thêm",
+              onClick: handleCreate,
+              icon: <PlusOutlined />,
+            },
+            {
+              can: can("sales.customers", "create"),
+
+              type: "default",
+              name: "Xuất Excel",
+              onClick: handleExportExcel,
+              icon: <DownloadOutlined />,
+            },
+            {
+              can: can("sales.customers", "create"),
+              type: "default",
+              name: "Nhập Excel",
+              onClick: handleImportExcel,
+              icon: <UploadOutlined />,
+            },
+          ],
           searchInput: {
             placeholder: "Tìm kiếm khách hàng",
             filterKeys: ["customerName", "customerCode", "phone", "email"],

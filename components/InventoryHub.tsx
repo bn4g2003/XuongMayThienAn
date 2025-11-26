@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useColumn from "@/hooks/useColumn";
 import {
   DownloadOutlined,
+  PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import { Tag, type TableColumnsType } from "antd";
@@ -24,7 +25,7 @@ type Warehouse = {
   isActive?: boolean;
 };
 
-export default function WarehousesHub({ path }: { path: string }) {
+export default function InventoryHub({ path }: { path: string }) {
   const { can } = usePermissions();
   const { reset, applyFilter, updateQueries, query } = useFilter();
   const queryClient = useQueryClient();
@@ -40,8 +41,20 @@ export default function WarehousesHub({ path }: { path: string }) {
       const body = await res.json();
       return body.success ? body.data : [];
     },
-    staleTime: 5 * 60 * 1000,
   });
+
+  const warehouseOptions = (warehousesData || []).map((w) => ({
+    label: w.warehouseName,
+    value: w.id,
+  }));
+  const branchMap = new Map<number, string>();
+  (warehousesData || []).forEach((w) =>
+    branchMap.set(w.branchId, w.branchName || "")
+  );
+  const branchOptions = Array.from(branchMap.entries()).map(([id, name]) => ({
+    label: name,
+    value: id,
+  }));
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -58,13 +71,13 @@ export default function WarehousesHub({ path }: { path: string }) {
 
   const columnsAll: TableColumnsType<Warehouse> = [
     {
-      title: "Mã kho",
+      title: "Mã",
       dataIndex: "warehouseCode",
       key: "warehouseCode",
       width: 140,
     },
     {
-      title: "Tên kho",
+      title: "Tên",
       dataIndex: "warehouseName",
       key: "warehouseName",
       width: 240,
@@ -120,12 +133,21 @@ export default function WarehousesHub({ path }: { path: string }) {
           refetchDataWithKeys: ["warehouses"],
           buttonEnds: [
             {
+              can: can(`inventory.${path}`, "create"),
+              type: "primary",
+              name: "Thêm phiếu",
+              onClick: () => {},
+              icon: <PlusOutlined />,
+            },
+            {
+              can: can(`inventory.${path}`, "view"),
               type: "default",
               name: "Xuất Excel",
               onClick: handleExportExcel,
               icon: <DownloadOutlined />,
             },
             {
+              can: can(`inventory.${path}`, "view"),
               type: "default",
               name: "Nhập Excel",
               onClick: handleImportExcel,
@@ -134,10 +156,30 @@ export default function WarehousesHub({ path }: { path: string }) {
           ],
           searchInput: {
             placeholder: "Tìm kiếm kho",
-            filterKeys: ["warehouseName", "warehouseCode", "branchName"],
+            filterKeys: [
+              "warehouseName",
+              "warehouseCode",
+              "branchName",
+              "warehouseType",
+            ],
           },
           filters: {
-            fields: [],
+            fields: [
+              { name: "date", label: "Ngày phiếu", type: "date" },
+              { name: "createdAt", label: "Từ - đến", type: "dateRange" },
+              {
+                name: "warehouseId",
+                label: "Kho",
+                type: "select",
+                options: warehouseOptions,
+              },
+              {
+                name: "branchId",
+                label: "Chi nhánh",
+                type: "select",
+                options: branchOptions,
+              },
+            ],
             onApplyFilter: (arr) => updateQueries(arr),
             onReset: () => reset(),
             query,
