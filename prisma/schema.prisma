@@ -1,0 +1,484 @@
+generator client {
+  provider   = "prisma-client"
+  output     = "../src/prisma"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model bank_accounts {
+  id             Int             @id @default(autoincrement())
+  account_number String          @db.VarChar(50)
+  account_holder String          @db.VarChar(255)
+  bank_name      String          @db.VarChar(255)
+  branch_name    String?         @db.VarChar(255)
+  balance        Decimal?        @default(0) @db.Decimal(15, 2)
+  branch_id      Int?
+  is_active      Boolean?        @default(true)
+  created_at     DateTime?       @default(now()) @db.Timestamp(6)
+  branches       branches?       @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cash_books     cash_books[]
+  debt_payments  debt_payments[]
+}
+
+model bom {
+  id          Int        @id @default(autoincrement())
+  product_id  Int?
+  material_id Int?
+  quantity    Decimal    @db.Decimal(10, 3)
+  unit        String     @db.VarChar(50)
+  notes       String?
+  created_at  DateTime?  @default(now()) @db.Timestamp(6)
+  materials   materials? @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  products    products?  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([product_id, material_id])
+}
+
+/// Simple goods table linking products and materials
+model goods {
+  id          Int       @id @default(autoincrement())
+  product_id  Int?
+  material_id Int?
+  sku         String?   @db.VarChar(50)
+  quantity    Decimal   @default(0) @db.Decimal(10, 3)
+  unit        String?   @db.VarChar(50)
+  notes       String?
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+
+  materials materials? @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  products  products?  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([product_id, material_id])
+}
+
+model branches {
+  id              Int               @id @default(autoincrement())
+  branch_code     String            @unique @db.VarChar(20)
+  branch_name     String            @db.VarChar(255)
+  address         String?
+  phone           String?           @db.VarChar(20)
+  email           String?           @db.VarChar(255)
+  is_active       Boolean?          @default(true)
+  created_at      DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamp(6)
+  bank_accounts   bank_accounts[]
+  cash_books      cash_books[]
+  customers       customers[]
+  materials       materials[]
+  orders          orders[]
+  products        products[]
+  purchase_orders purchase_orders[]
+  suppliers       suppliers[]
+  users           users[]
+  warehouses      warehouses[]
+}
+
+model cash_books {
+  id                    Int                   @id @default(autoincrement())
+  transaction_code      String                @unique @db.VarChar(50)
+  transaction_date      DateTime              @db.Date
+  financial_category_id Int?
+  amount                Decimal               @db.Decimal(15, 2)
+  transaction_type      String                @db.VarChar(20)
+  payment_method        String                @db.VarChar(20)
+  bank_account_id       Int?
+  reference_id          Int?
+  reference_type        String?               @db.VarChar(50)
+  description           String?
+  created_by            Int?
+  branch_id             Int?
+  created_at            DateTime?             @default(now()) @db.Timestamp(6)
+  bank_accounts         bank_accounts?        @relation(fields: [bank_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  branches              branches?             @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                 users?                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  financial_categories  financial_categories? @relation(fields: [financial_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model company_config {
+  id           Int       @id @default(autoincrement())
+  company_name String    @db.VarChar(255)
+  tax_code     String?   @db.VarChar(50)
+  address      String?
+  phone        String?   @db.VarChar(20)
+  email        String?   @db.VarChar(255)
+  header_text  String?
+  footer_text  String?
+  logo_url     String?
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model customer_groups {
+  id               Int         @id @default(autoincrement())
+  group_code       String      @unique @db.VarChar(50)
+  group_name       String      @db.VarChar(255)
+  price_multiplier Decimal?    @default(1.000) @db.Decimal(5, 3)
+  description      String?
+  created_at       DateTime?   @default(now()) @db.Timestamp(6)
+  customers        customers[]
+}
+
+model customers {
+  id                Int               @id @default(autoincrement())
+  customer_code     String            @unique @db.VarChar(50)
+  customer_name     String            @db.VarChar(255)
+  phone             String?           @db.VarChar(20)
+  email             String?           @db.VarChar(255)
+  address           String?
+  customer_group_id Int?
+  branch_id         Int?
+  debt_amount       Decimal?          @default(0) @db.Decimal(15, 2)
+  is_active         Boolean?          @default(true)
+  created_at        DateTime?         @default(now()) @db.Timestamp(6)
+  branches          branches?         @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customer_groups   customer_groups?  @relation(fields: [customer_group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  debt_management   debt_management[]
+  orders            orders[]
+
+  @@index([branch_id], map: "idx_customers_branch")
+  @@index([customer_group_id], map: "idx_customers_group")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model debt_management {
+  id               Int             @id @default(autoincrement())
+  debt_code        String          @unique @db.VarChar(50)
+  customer_id      Int?
+  supplier_id      Int?
+  debt_type        String          @db.VarChar(20)
+  original_amount  Decimal         @db.Decimal(15, 2)
+  remaining_amount Decimal         @db.Decimal(15, 2)
+  due_date         DateTime?       @db.Date
+  reference_id     Int?
+  reference_type   String?         @db.VarChar(50)
+  status           String?         @default("PENDING") @db.VarChar(20)
+  notes            String?
+  created_at       DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?       @default(now()) @db.Timestamp(6)
+  deposit_amount   Decimal?        @default(0) @db.Decimal(15, 2)
+  paid_amount      Decimal?        @default(0) @db.Decimal(15, 2)
+  customers        customers?      @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  suppliers        suppliers?      @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  debt_payments    debt_payments[]
+}
+
+model debt_payments {
+  id              Int              @id @default(autoincrement())
+  debt_id         Int?
+  payment_amount  Decimal          @db.Decimal(15, 2)
+  payment_date    DateTime         @db.Date
+  payment_method  String           @db.VarChar(20)
+  bank_account_id Int?
+  notes           String?
+  created_by      Int?
+  created_at      DateTime?        @default(now()) @db.Timestamp(6)
+  bank_accounts   bank_accounts?   @relation(fields: [bank_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users           users?           @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  debt_management debt_management? @relation(fields: [debt_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model financial_categories {
+  id            Int          @id @default(autoincrement())
+  category_code String       @unique @db.VarChar(50)
+  category_name String       @db.VarChar(255)
+  type          String       @db.VarChar(20)
+  description   String?
+  is_active     Boolean?     @default(true)
+  created_at    DateTime?    @default(now()) @db.Timestamp(6)
+  cash_books    cash_books[]
+}
+
+model inventory_balances {
+  id           Int         @id @default(autoincrement())
+  warehouse_id Int?
+  product_id   Int?
+  material_id  Int?
+  quantity     Decimal     @default(0) @db.Decimal(10, 3)
+  last_updated DateTime?   @default(now()) @db.Timestamp(6)
+  materials    materials?  @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  products     products?   @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouses   warehouses? @relation(fields: [warehouse_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([warehouse_id, product_id, material_id])
+  @@index([material_id], map: "idx_inventory_material")
+  @@index([product_id], map: "idx_inventory_product")
+  @@index([warehouse_id], map: "idx_inventory_warehouse")
+}
+
+model inventory_transaction_details {
+  id                     Int                     @id @default(autoincrement())
+  transaction_id         Int?
+  product_id             Int?
+  material_id            Int?
+  quantity               Decimal                 @db.Decimal(10, 3)
+  unit_price             Decimal?                @db.Decimal(15, 2)
+  total_amount           Decimal?                @db.Decimal(15, 2)
+  notes                  String?
+  materials              materials?              @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  products               products?               @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inventory_transactions inventory_transactions? @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model inventory_transactions {
+  id                                                              Int                             @id @default(autoincrement())
+  transaction_code                                                String                          @unique @db.VarChar(50)
+  transaction_type                                                String                          @db.VarChar(20)
+  from_warehouse_id                                               Int?
+  to_warehouse_id                                                 Int?
+  reference_id                                                    Int?
+  reference_type                                                  String?                         @db.VarChar(50)
+  status                                                          String?                         @default("PENDING") @db.VarChar(20)
+  notes                                                           String?
+  created_by                                                      Int?
+  approved_by                                                     Int?
+  created_at                                                      DateTime?                       @default(now()) @db.Timestamp(6)
+  approved_at                                                     DateTime?                       @db.Timestamp(6)
+  completed_at                                                    DateTime?                       @db.Timestamp(6)
+  inventory_transaction_details                                   inventory_transaction_details[]
+  users_inventory_transactions_approved_byTousers                 users?                          @relation("inventory_transactions_approved_byTousers", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_inventory_transactions_created_byTousers                  users?                          @relation("inventory_transactions_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouses_inventory_transactions_from_warehouse_idTowarehouses warehouses?                     @relation("inventory_transactions_from_warehouse_idTowarehouses", fields: [from_warehouse_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouses_inventory_transactions_to_warehouse_idTowarehouses   warehouses?                     @relation("inventory_transactions_to_warehouse_idTowarehouses", fields: [to_warehouse_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model materials {
+  id                            Int                             @id @default(autoincrement())
+  material_code                 String                          @unique @db.VarChar(50)
+  material_name                 String                          @db.VarChar(255)
+  unit                          String                          @db.VarChar(50)
+  description                   String?
+  branch_id                     Int?
+  created_at                    DateTime?                       @default(now()) @db.Timestamp(6)
+  bom                           bom[]
+  goods                         goods[]
+  inventory_balances            inventory_balances[]
+  inventory_transaction_details inventory_transaction_details[]
+  branches                      branches?                       @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchase_order_details        purchase_order_details[]
+}
+
+model order_details {
+  id           Int       @id @default(autoincrement())
+  order_id     Int?
+  product_id   Int?
+  quantity     Decimal   @db.Decimal(10, 3)
+  unit_price   Decimal   @db.Decimal(15, 2)
+  cost_price   Decimal?  @db.Decimal(15, 2)
+  total_amount Decimal   @db.Decimal(15, 2)
+  notes        String?
+  orders       orders?   @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  products     products? @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model orders {
+  id                Int             @id @default(autoincrement())
+  order_code        String          @unique @db.VarChar(50)
+  customer_id       Int?
+  branch_id         Int?
+  order_date        DateTime        @db.Date
+  total_amount      Decimal         @db.Decimal(15, 2)
+  discount_amount   Decimal?        @default(0) @db.Decimal(15, 2)
+  final_amount      Decimal         @db.Decimal(15, 2)
+  status            String?         @default("PENDING") @db.VarChar(20)
+  notes             String?
+  created_by        Int?
+  created_at        DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at        DateTime?       @default(now()) @db.Timestamp(6)
+  production_status Json?
+  deposit_amount    Decimal?        @default(0) @db.Decimal(15, 2)
+  paid_amount       Decimal?        @default(0) @db.Decimal(15, 2)
+  payment_status    String?         @default("UNPAID") @db.VarChar(20)
+  order_details     order_details[]
+  branches          branches?       @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users             users?          @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customers         customers?      @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([branch_id], map: "idx_orders_branch")
+  @@index([customer_id], map: "idx_orders_customer")
+}
+
+model permissions {
+  id               Int                @id @default(autoincrement())
+  permission_code  String             @unique @db.VarChar(100)
+  permission_name  String             @db.VarChar(255)
+  module           String             @db.VarChar(100)
+  description      String?
+  role_permissions role_permissions[]
+}
+
+model product_categories {
+  id                       Int                  @id @default(autoincrement())
+  category_code            String               @unique @db.VarChar(50)
+  category_name            String               @db.VarChar(255)
+  parent_id                Int?
+  description              String?
+  created_at               DateTime?            @default(now()) @db.Timestamp(6)
+  product_categories       product_categories?  @relation("product_categoriesToproduct_categories", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_product_categories product_categories[] @relation("product_categoriesToproduct_categories")
+  products                 products[]
+}
+
+model products {
+  id                            Int                             @id @default(autoincrement())
+  product_code                  String                          @unique @db.VarChar(50)
+  product_name                  String                          @db.VarChar(255)
+  category_id                   Int?
+  description                   String?
+  unit                          String                          @db.VarChar(50)
+  cost_price                    Decimal?                        @db.Decimal(15, 2)
+  branch_id                     Int?
+  is_active                     Boolean?                        @default(true)
+  created_at                    DateTime?                       @default(now()) @db.Timestamp(6)
+  updated_at                    DateTime?                       @default(now()) @db.Timestamp(6)
+  bom                           bom[]
+  goods                         goods[]
+  inventory_balances            inventory_balances[]
+  inventory_transaction_details inventory_transaction_details[]
+  order_details                 order_details[]
+  branches                      branches?                       @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  product_categories            product_categories?             @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([branch_id], map: "idx_products_branch")
+  @@index([category_id], map: "idx_products_category")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model purchase_order_details {
+  id                Int              @id @default(autoincrement())
+  purchase_order_id Int?
+  material_id       Int?
+  quantity          Decimal          @db.Decimal(10, 3)
+  unit_price        Decimal          @db.Decimal(15, 2)
+  total_amount      Decimal          @db.Decimal(15, 2)
+  notes             String?
+  item_code         String?          @db.VarChar(50)
+  item_name         String?          @db.VarChar(255)
+  unit              String?          @db.VarChar(50)
+  materials         materials?       @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchase_orders   purchase_orders? @relation(fields: [purchase_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model purchase_orders {
+  id                     Int                      @id @default(autoincrement())
+  po_code                String                   @unique @db.VarChar(50)
+  supplier_id            Int?
+  branch_id              Int?
+  order_date             DateTime                 @db.Date
+  expected_date          DateTime?                @db.Date
+  total_amount           Decimal                  @db.Decimal(15, 2)
+  status                 String?                  @default("PENDING") @db.VarChar(20)
+  notes                  String?
+  created_by             Int?
+  created_at             DateTime?                @default(now()) @db.Timestamp(6)
+  deposit_amount         Decimal?                 @default(0) @db.Decimal(15, 2)
+  paid_amount            Decimal?                 @default(0) @db.Decimal(15, 2)
+  payment_status         String?                  @default("UNPAID") @db.VarChar(20)
+  purchase_order_details purchase_order_details[]
+  branches               branches?                @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                  users?                   @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  suppliers              suppliers?               @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model role_permissions {
+  id            Int          @id @default(autoincrement())
+  role_id       Int?
+  permission_id Int?
+  can_view      Boolean?     @default(false)
+  can_create    Boolean?     @default(false)
+  can_edit      Boolean?     @default(false)
+  can_delete    Boolean?     @default(false)
+  is_custom     Boolean?     @default(false)
+  permissions   permissions? @relation(fields: [permission_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  roles         roles?       @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([role_id, permission_id])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model roles {
+  id               Int                @id @default(autoincrement())
+  role_code        String             @unique @db.VarChar(50)
+  role_name        String             @db.VarChar(255)
+  description      String?
+  created_at       DateTime?          @default(now()) @db.Timestamp(6)
+  role_permissions role_permissions[]
+  users            users[]
+}
+
+model supplier_groups {
+  id          Int         @id @default(autoincrement())
+  group_code  String      @unique @db.VarChar(50)
+  group_name  String      @db.VarChar(255)
+  description String?
+  created_at  DateTime?   @default(now()) @db.Timestamp(6)
+  suppliers   suppliers[]
+}
+
+model suppliers {
+  id                Int               @id @default(autoincrement())
+  supplier_code     String            @unique @db.VarChar(50)
+  supplier_name     String            @db.VarChar(255)
+  phone             String?           @db.VarChar(20)
+  email             String?           @db.VarChar(255)
+  address           String?
+  supplier_group_id Int?
+  branch_id         Int?
+  debt_amount       Decimal?          @default(0) @db.Decimal(15, 2)
+  is_active         Boolean?          @default(true)
+  created_at        DateTime?         @default(now()) @db.Timestamp(6)
+  debt_management   debt_management[]
+  purchase_orders   purchase_orders[]
+  branches          branches?         @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supplier_groups   supplier_groups?  @relation(fields: [supplier_group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([branch_id], map: "idx_suppliers_branch")
+}
+
+model users {
+  id                                                               Int                      @id @default(autoincrement())
+  user_code                                                        String                   @unique @db.VarChar(20)
+  username                                                         String                   @unique @db.VarChar(100)
+  password_hash                                                    String                   @db.VarChar(255)
+  full_name                                                        String                   @db.VarChar(255)
+  email                                                            String?                  @db.VarChar(255)
+  phone                                                            String?                  @db.VarChar(20)
+  branch_id                                                        Int?
+  role_id                                                          Int?
+  is_active                                                        Boolean?                 @default(true)
+  created_at                                                       DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at                                                       DateTime?                @default(now()) @db.Timestamp(6)
+  cash_books                                                       cash_books[]
+  debt_payments                                                    debt_payments[]
+  inventory_transactions_inventory_transactions_approved_byTousers inventory_transactions[] @relation("inventory_transactions_approved_byTousers")
+  inventory_transactions_inventory_transactions_created_byTousers  inventory_transactions[] @relation("inventory_transactions_created_byTousers")
+  orders                                                           orders[]
+  purchase_orders                                                  purchase_orders[]
+  branches                                                         branches?                @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  roles                                                            roles?                   @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([branch_id], map: "idx_users_branch")
+  @@index([role_id], map: "idx_users_role")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model warehouses {
+  id                                                                          Int                      @id @default(autoincrement())
+  warehouse_code                                                              String                   @unique @db.VarChar(20)
+  warehouse_name                                                              String                   @db.VarChar(255)
+  branch_id                                                                   Int?
+  address                                                                     String?
+  is_active                                                                   Boolean?                 @default(true)
+  created_at                                                                  DateTime?                @default(now()) @db.Timestamp(6)
+  warehouse_type                                                              String?                  @default("THANH_PHAM") @db.VarChar(20)
+  inventory_balances                                                          inventory_balances[]
+  inventory_transactions_inventory_transactions_from_warehouse_idTowarehouses inventory_transactions[] @relation("inventory_transactions_from_warehouse_idTowarehouses")
+  inventory_transactions_inventory_transactions_to_warehouse_idTowarehouses   inventory_transactions[] @relation("inventory_transactions_to_warehouse_idTowarehouses")
+  branches                                                                    branches?                @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
