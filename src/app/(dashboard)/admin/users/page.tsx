@@ -12,15 +12,13 @@ import { useFileExport } from "@/hooks/useFileExport";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
-  useUsers,
-  useDeleteUser,
   useCreateUser,
-  useUpdateUser,
-  useChangePassword,
+  useDeleteUser,
   USER_KEYS,
-} from "@/hooks/useUserTrpc";
-import { useRoles } from "@/hooks/useRoleTrpc";
-import { useBranches } from "@/hooks/useBranchTrpc";
+  useUpdateUser,
+  useUsers,
+} from "@/hooks/useUserQuery";
+import { branchService, roleService } from "@/services/commonService";
 import type { User } from "@/services/userService";
 import {
   DownloadOutlined,
@@ -36,50 +34,21 @@ import { useState } from "react";
 
 export default function UsersPage() {
   const { can } = usePermissions();
-  const {
-    reset,
-    applyFilter,
-    updateQueries,
-    query,
-    pagination,
-    handlePageChange,
-  } = useFilter();
+  const { reset, applyFilter, updateQueries, query, pagination, handlePageChange } = useFilter();
 
   // React Query hooks
-  const { data: usersData, isLoading, isFetching } = useUsers();
-  const { data: rolesData = [] } = useRoles();
-  const { data: branchesData = [] } = useBranches();
-
-  const roles = rolesData.map(role => ({
-    ...role,
-    description: role.description || undefined,
-  }));
-
-  const branches = branchesData.map(branch => ({
-    ...branch,
-    address: branch.address || undefined,
-    phone: branch.phone || undefined,
-    email: branch.email || undefined,
-    isActive: branch.isActive ?? true,
-    createdAt: branch.createdAt?.toISOString(),
-  }));
-
-  const users = usersData?.users.map(user => ({
-    ...user,
-    email: user.email || undefined,
-    phone: user.phone || undefined,
-    branchId: user.branchId || 0,
-    roleId: user.roleId || 0,
-    isActive: user.isActive ?? true,
-    createdAt: user.createdAt?.toISOString() || '',
-    branchName: user.branchName || '',
-    roleName: user.roleName || '',
-    roleCode: user.roleCode || '',
-  })) || [];
+  const { data: users = [], isLoading, isFetching } = useUsers();
+  const { data: roles = [] } = useQuery({
+    queryKey: ["roles"],
+    queryFn: roleService.getAll,
+  });
+  const { data: branches = [] } = useQuery({
+    queryKey: ["branches"],
+    queryFn: branchService.getAll,
+  });
   const deleteMutation = useDeleteUser();
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
-  const changePasswordMutation = useChangePassword();
 
   // Apply filter to get filtered users
   const filteredUsers = applyFilter(users);
@@ -120,7 +89,7 @@ export default function UsersPage() {
       okText: "Xóa",
       cancelText: "Hủy",
       okButtonProps: { danger: true },
-      onOk: () => deleteMutation.mutate({ id }),
+      onOk: () => deleteMutation.mutate(id),
     });
   };
 
@@ -159,17 +128,32 @@ export default function UsersPage() {
 
     try {
       setPasswordSubmitting(true);
-      changePasswordMutation.mutate({
-        id: selectedUser.id,
-        newPassword: passwordForm.newPassword,
-      }, {
-        onSuccess: () => {
-          setPasswordModalVisible(false);
-          setPasswordForm({ newPassword: "", confirmPassword: "" });
-        }
+      const res = await fetch(`/api/admin/users/${selectedUser.id}/password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: passwordForm.newPassword }),
       });
+
+      const data = await res.json();
+
+      if (data.success) {
+        modal.success({
+          title: "Thành công",
+          content: "Đã đổi mật khẩu thành công",
+        });
+        setPasswordModalVisible(false);
+        setPasswordForm({ newPassword: "", confirmPassword: "" });
+      } else {
+        modal.error({
+          title: "Lỗi",
+          content: data.error || "Có lỗi xảy ra",
+        });
+      }
     } catch (error) {
-      console.error('Password change error:', error);
+      modal.error({
+        title: "Lỗi",
+        content: "Có lỗi xảy ra khi đổi mật khẩu",
+      });
     } finally {
       setPasswordSubmitting(false);
     }
@@ -182,17 +166,19 @@ export default function UsersPage() {
         { onSuccess: () => setModalVisible(false) }
       );
     } else if (selectedUser) {
-      updateMutation.mutate({
-        id: selectedUser.id,
+      const updatePayload = {
         fullName: values.fullName,
         email: values.email,
         phone: values.phone,
         branchId: values.branchId,
         roleId: values.roleId,
         isActive: !!values.isActive,
-      }, {
-        onSuccess: () => setModalVisible(false)
-      });
+      };
+
+      updateMutation.mutate(
+        { id: selectedUser.id, data: updatePayload },
+        { onSuccess: () => setModalVisible(false) }
+      );
     }
   };
 
@@ -343,11 +329,8 @@ export default function UsersPage() {
         }}
       >
         <CommonTable
-          pagination={{
-            ...pagination,
-            onChange: handlePageChange,
-          }}
           columns={getVisibleColumns()}
+          pagination={{ ...pagination, onChange: handlePageChange }}
           dataSource={filteredUsers}
           loading={isLoading || deleteMutation.isPending || isFetching}
           paging

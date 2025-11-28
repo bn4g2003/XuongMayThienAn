@@ -351,14 +351,12 @@ export default function FinancialCategoriesPage() {
           </Row>
 
           <CommonTable
-            pagination={{
-              ...pagination,
-              onChange: handlePageChange,
-            }}
+
             columns={getVisibleColumns()}
             dataSource={filteredCategories}
             loading={loading}
             paging
+            pagination={{ ...pagination, onChange: handlePageChange }}
           />
         </div>
       </WrapperContent>

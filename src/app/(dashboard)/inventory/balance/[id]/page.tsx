@@ -167,11 +167,10 @@ export default function PageClient() {
         ],
       }}
     >
+
       <CommonTable
-        pagination={{
-          ...pagination,
-          onChange: handlePageChange,
-        }}
+            pagination={{ ...pagination, onChange: handlePageChange }}
+
         loading={isLoading}
         columns={getVisibleColumns()}
         dataSource={filteredDetails}

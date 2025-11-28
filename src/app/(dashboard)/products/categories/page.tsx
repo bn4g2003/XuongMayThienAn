@@ -13,7 +13,7 @@ import {
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
-import { useCreateProductCategory, useDeleteProductCategory, useProductCategories, useUpdateProductCategory } from "@/hooks/useProductCategoryTrpc";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
 import { App, Descriptions, Drawer, Modal } from "antd";
 import { useState } from "react";
@@ -28,21 +28,68 @@ export default function CategoriesPage() {
     pagination,
     handlePageChange,
   } = useFilter();
+
+  const queryClient = useQueryClient();
   const { modal } = App.useApp();
-  const { data: categories = [], isLoading, isFetching } = useProductCategories();
 
-  const createMutation = useCreateProductCategory();
-  const updateMutation = useUpdateProductCategory();
-  const deleteMutation = useDeleteProductCategory();
+  const {
+    data: categories = [],
+    isLoading,
+    isFetching,
+  } = useQuery<Category[]>({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/products/categories");
+      const body = await res.json();
+      return body.success ? body.data : [];
+    },
+  });
 
-  const categoriesData = categories.map(category => ({
-    ...category,
-    parentId: category.parentId || undefined,
-    parentName: category.parentName || undefined,
-    description: category.description || undefined,
-  }));
+  const createMutation = useMutation({
+    mutationFn: async (data: CategoryFormValues) => {
+      const res = await fetch("/api/products/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+  });
 
-  const filtered = applyFilter<Category>(categoriesData);
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Partial<CategoryFormValues>;
+    }) => {
+      const res = await fetch(`/api/products/categories/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["categories"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/products/categories/${id}`, {
+        method: "DELETE",
+      });
+      return res.json();
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["categories"] }),
+  });
+
+  const filtered = applyFilter<Category>(categories);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -73,25 +120,18 @@ export default function CategoriesPage() {
       okText: "Xóa",
       cancelText: "Hủy",
       okButtonProps: { danger: true },
-      onOk: () => deleteMutation.mutate({ id }),
+      onOk: () => deleteMutation.mutate(id),
     });
   };
 
   const handleSubmit = (values: CategoryFormValues) => {
     if (modalMode === "create") {
-      createMutation.mutate({
-        categoryCode: values.categoryCode,
-        categoryName: values.categoryName,
-        parentId: typeof values.parentId === 'string' ? parseInt(values.parentId) : values.parentId,
-        description: values.description,
-      }, { onSuccess: () => setModalOpen(false) });
+      createMutation.mutate(values, { onSuccess: () => setModalOpen(false) });
     } else if (selected) {
-      updateMutation.mutate({
-        id: selected.id,
-        categoryName: values.categoryName,
-        parentId: typeof values.parentId === 'string' ? parseInt(values.parentId) : values.parentId,
-        description: values.description,
-      }, { onSuccess: () => setModalOpen(false) });
+      updateMutation.mutate(
+        { id: selected.id, data: values },
+        { onSuccess: () => setModalOpen(false) }
+      );
     }
   };
 
@@ -193,11 +233,8 @@ export default function CategoriesPage() {
         }}
       >
         <CommonTable
-          pagination={{
-            ...pagination,
-            onChange: handlePageChange,
-          }}
           columns={getVisibleColumns()}
+          pagination={{ ...pagination, onChange: handlePageChange }}
           dataSource={filtered}
           loading={isLoading || isFetching || deleteMutation.isPending}
           paging
@@ -249,7 +286,7 @@ export default function CategoriesPage() {
                 }
               : undefined
           }
-          categories={categoriesData}
+          categories={categories}
           excludeId={selected?.id}
           onCancel={() => setModalOpen(false)}
           onSubmit={handleSubmit}

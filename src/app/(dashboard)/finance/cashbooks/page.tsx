@@ -387,10 +387,7 @@ export default function CashBooksPage() {
           </Row>
 
           <CommonTable
-            pagination={{
-              ...pagination,
-              onChange: handlePageChange,
-            }}
+            pagination={{ ...pagination, onChange: handlePageChange }}
             columns={getVisibleColumns()}
             dataSource={filteredCashbooks}
             loading={loading}

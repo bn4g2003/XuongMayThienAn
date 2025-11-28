@@ -5,8 +5,7 @@ import TableActions from "@/components/TableActions";
 import WarehouseForm from "@/components/WarehouseForm";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
-import { useBranches } from "@/hooks/useBranchTrpc";
-import { useCreateWarehouse, useDeleteWarehouse, useUpdateWarehouse, useWarehouses } from "@/hooks/useWarehouseTrpc";
+import { useBranches } from "@/hooks/useCommonQuery";
 import { useFileExport } from "@/hooks/useFileExport";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -21,6 +20,7 @@ import {
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
 import { App, Descriptions, Drawer, Modal, Tag } from "antd";
 import { useState } from "react";
@@ -36,23 +36,66 @@ export default function WarehousesPage() {
     pagination,
     handlePageChange,
   } = useFilter();
+  const queryClient = useQueryClient();
 
-  const { data: warehouses = [], isLoading, isFetching } = useWarehouses();
+  const {
+    data: warehouses = [],
+    isLoading,
+    isFetching,
+  } = useQuery<Warehouse[]>({
+    queryKey: ["warehouses"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/warehouses");
+      const body = await res.json();
+      return body.success ? body.data : [];
+    },
+  });
 
-  const createMutation = useCreateWarehouse();
-  const updateMutation = useUpdateWarehouse();
-  const deleteMutation = useDeleteWarehouse();
+  const createMutation = useMutation({
+    mutationFn: async (data: WarehouseFormValues) => {
+      const res = await fetch("/api/admin/warehouses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+    },
+  });
 
-  const warehousesData = warehouses.map(warehouse => ({
-    ...warehouse,
-    branchId: warehouse.branchId || 0,
-    address: warehouse.address || undefined,
-    isActive: warehouse.isActive ?? true,
-    warehouseType: warehouse.warehouseType as WarehouseType,
-    branchName: warehouse.branchName || "",
-  }));
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Partial<WarehouseFormValues>;
+    }) => {
+      const res = await fetch(`/api/admin/warehouses/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] }),
+  });
 
-  const filtered = applyFilter<Warehouse>(warehousesData);
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/admin/warehouses/${id}`, {
+        method: "DELETE",
+      });
+      return res.json();
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] }),
+  });
+
+  const filtered = applyFilter<Warehouse>(warehouses);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -83,28 +126,18 @@ export default function WarehousesPage() {
       okText: "Xóa",
       cancelText: "Hủy",
       okButtonProps: { danger: true },
-      onOk: () => deleteMutation.mutate({ id }),
+      onOk: () => deleteMutation.mutate(id),
     });
   };
 
   const handleSubmit = (values: WarehouseFormValues) => {
     if (modalMode === "create") {
-      createMutation.mutate({
-        warehouseCode: values.warehouseCode,
-        warehouseName: values.warehouseName,
-        branchId: typeof values.branchId === 'string' ? parseInt(values.branchId) : values.branchId,
-        warehouseType: values.warehouseType,
-        address: values.address,
-      }, { onSuccess: () => setModalOpen(false) });
+      createMutation.mutate(values, { onSuccess: () => setModalOpen(false) });
     } else if (selected) {
-      updateMutation.mutate({
-        id: selected.id,
-        warehouseName: values.warehouseName,
-        branchId: typeof values.branchId === 'string' ? parseInt(values.branchId) : values.branchId,
-        warehouseType: values.warehouseType,
-        isActive: values.isActive ?? true,
-        address: values.address,
-      }, { onSuccess: () => setModalOpen(false) });
+      updateMutation.mutate(
+        { id: selected.id, data: values },
+        { onSuccess: () => setModalOpen(false) }
+      );
     }
   };
 
@@ -259,10 +292,7 @@ export default function WarehousesPage() {
         }}
       >
         <CommonTable
-          pagination={{
-            ...pagination,
-            onChange: handlePageChange,
-          }}
+          pagination={{ ...pagination, onChange: handlePageChange }}
           columns={getVisibleColumns()}
           dataSource={filtered}
           loading={isLoading || isFetching || deleteMutation.isPending}

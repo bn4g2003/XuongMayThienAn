@@ -48,6 +48,7 @@ export default function TransferWarehousePage() {
     pagination,
     handlePageChange,
   } = useFilter();
+
   const queryClient = useQueryClient();
   const { modal, message } = App.useApp();
 
@@ -323,11 +324,8 @@ export default function TransferWarehousePage() {
         }}
       >
         <CommonTable
-          pagination={{
-            ...pagination,
-            onChange: handlePageChange,
-          }}
           columns={getVisibleColumns()}
+          pagination={{ ...pagination, onChange: handlePageChange }}
           dataSource={filtered}
           loading={isLoading || isFetching || deleteMutation.isPending}
           paging

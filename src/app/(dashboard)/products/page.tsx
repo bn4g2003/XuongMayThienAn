@@ -17,27 +17,12 @@ import {
   useDeleteProduct,
   useProducts,
   useUpdateProduct,
-} from "@/hooks/useProductTrpc";
+} from "@/hooks/useProductQuery";
 import type {
   CreateProductDto,
   Product,
   UpdateProductDto,
 } from "@/services/productService";
-
-// Type for tRPC response
-type ProductFromTrpc = {
-  id: number;
-  productCode: string;
-  productName: string;
-  categoryId?: number;
-  description?: string;
-  unit: string;
-  costPrice?: number;
-  isActive: boolean;
-  branchId?: number;
-  categoryName?: string;
-  branchName?: string;
-};
 import { formatCurrency } from "@/utils/formatCurrency";
 import {
   CheckCircleOutlined,
@@ -56,8 +41,7 @@ export default function ProductsPage() {
   const { reset, query, applyFilter, updateQueries, pagination, handlePageChange } = useFilter();
   const { data: branches = [] } = useBranches();
 
-  const { data: productsResponse = { products: [], total: 0 }, isLoading, isFetching } = useProducts();
-  const products = productsResponse.products;
+  const { data: products = [], isLoading, isFetching } = useProducts();
   const { data: categories = [] } = useCategories();
   const deleteMutation = useDeleteProduct();
   const createMutation = useCreateProduct();
@@ -67,10 +51,10 @@ export default function ProductsPage() {
 
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<ProductFromTrpc | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const { modal } = App.useApp();
-  const handleView = (product: ProductFromTrpc) => {
+  const handleView = (product: Product) => {
     setSelectedProduct(product);
     setDrawerVisible(true);
   };
@@ -81,7 +65,7 @@ export default function ProductsPage() {
     setModalVisible(true);
   };
 
-  const handleEdit = (product: ProductFromTrpc) => {
+  const handleEdit = (product: Product) => {
     setModalMode("edit");
     setSelectedProduct(product);
     setModalVisible(true);
@@ -94,7 +78,7 @@ export default function ProductsPage() {
       okText: "Xóa",
       cancelText: "Hủy",
       okButtonProps: { danger: true },
-      onOk: () => deleteMutation.mutate({ id }),
+      onOk: () => deleteMutation.mutate(id),
     });
   };
 
@@ -104,14 +88,15 @@ export default function ProductsPage() {
         onSuccess: () => setModalVisible(false),
       });
     } else if (selectedProduct) {
+      const updatePayload: UpdateProductDto = values as UpdateProductDto;
       updateMutation.mutate(
-        { id: selectedProduct.id, ...(values as Omit<CreateProductDto, 'bom'>) },
+        { id: selectedProduct.id, data: updatePayload },
         { onSuccess: () => setModalVisible(false) }
       );
     }
   };
 
-  const columns: TableColumnsType<any> = [
+  const columns: TableColumnsType<Product> = [
     {
       title: "Mã",
       dataIndex: "productCode",
@@ -170,7 +155,7 @@ export default function ProductsPage() {
       key: "action",
       width: 100,
       fixed: "right",
-      render: (_: unknown, record: ProductFromTrpc) => {
+      render: (_: unknown, record: Product) => {
         return (
           <TableActions
             onView={() => handleView(record)}
@@ -248,7 +233,7 @@ export default function ProductsPage() {
                 type: "select",
                 name: "categoryId",
                 label: "Danh mục",
-                options: categories.map((cat: any) => ({
+                options: categories.map((cat) => ({
                   label: cat.categoryName,
                   value: cat.id.toString(),
                 })),
@@ -274,25 +259,23 @@ export default function ProductsPage() {
         }}
       >
         <CommonTable
-          pagination={{
-            ...pagination,
-            onChange: handlePageChange,
-          }}
           columns={columns}
           dataSource={filteredProducts}
           loading={isLoading || deleteMutation.isPending || isFetching}
           paging={true}
           rank={true}
+            pagination={{ ...pagination, onChange: handlePageChange }}
+
         />
       </WrapperContent>
 
       <ProductDetailDrawer
         open={drawerVisible}
-        product={selectedProduct as Product | null}
+        product={selectedProduct}
         onClose={() => setDrawerVisible(false)}
         onEdit={(p) => {
           setDrawerVisible(false);
-          handleEdit(p as ProductFromTrpc);
+          handleEdit(p);
         }}
         onDelete={(id) => {
           setDrawerVisible(false);
@@ -305,7 +288,7 @@ export default function ProductsPage() {
       <ProductFormModal
         open={modalVisible}
         mode={modalMode}
-        product={selectedProduct as Product | null}
+        product={selectedProduct}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
         onCancel={() => setModalVisible(false)}
         onSubmit={handleModalSubmit}

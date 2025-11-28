@@ -244,11 +244,8 @@ export default function CustomerGroupsPage() {
         }}
       >
         <CommonTable
-          pagination={{
-            ...pagination,
-            onChange: handlePageChange,
-          }}
           columns={getVisibleColumns()}
+          pagination={{ ...pagination, onChange: handlePageChange }}
           dataSource={filteredGroups}
           loading={isLoading || deleteMutation.isPending || isFetching}
           paging

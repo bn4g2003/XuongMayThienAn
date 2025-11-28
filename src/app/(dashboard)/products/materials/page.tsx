@@ -4,8 +4,7 @@ import CommonTable from "@/components/CommonTable";
 import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
-import { useBranches } from "@/hooks/useBranchTrpc";
-import { useCreateMaterial, useDeleteMaterial, useMaterials, useUpdateMaterial } from "@/hooks/useMaterialTrpc";
+import { useBranches } from "@/hooks/useCommonQuery";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
@@ -13,6 +12,7 @@ import {
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
 import {
   App,
@@ -92,21 +92,66 @@ export default function MaterialsPage() {
     pagination,
     handlePageChange,
   } = useFilter();
+
+  const queryClient = useQueryClient();
   const { data: branches = [] } = useBranches();
 
-  const { data: materials = [], isLoading, isFetching } = useMaterials();
+  const {
+    data: materials = [],
+    isLoading,
+    isFetching,
+  } = useQuery<Material[]>({
+    queryKey: ["materials"],
+    queryFn: async () => {
+      const res = await fetch("/api/products/materials");
+      const body = await res.json();
+      return body.success ? body.data : [];
+    },
+  });
 
-  const createMutation = useCreateMaterial();
-  const updateMutation = useUpdateMaterial();
-  const deleteMutation = useDeleteMaterial();
+  const createMutation = useMutation({
+    mutationFn: async (data: MaterialFormValues) => {
+      const res = await fetch("/api/products/materials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["materials"] });
+    },
+  });
 
-  const materialsData = materials.map(material => ({
-    ...material,
-    description: material.description || undefined,
-    branchName: material.branchName || "",
-  }));
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Partial<MaterialFormValues>;
+    }) => {
+      const res = await fetch(`/api/products/materials/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["materials"] }),
+  });
 
-  const filtered = applyFilter<Material>(materialsData);
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/products/materials/${id}`, {
+        method: "DELETE",
+      });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["materials"] }),
+  });
+
+  const filtered = applyFilter<Material>(materials);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -138,25 +183,18 @@ export default function MaterialsPage() {
       okText: "Xóa",
       cancelText: "Hủy",
       okButtonProps: { danger: true },
-      onOk: () => deleteMutation.mutate({ id }),
+      onOk: () => deleteMutation.mutate(id),
     });
   };
 
   const handleSubmit = (values: MaterialFormValues) => {
     if (modalMode === "create") {
-      createMutation.mutate({
-        materialCode: values.materialCode,
-        materialName: values.materialName,
-        unit: values.unit,
-        description: values.description,
-      }, { onSuccess: () => setModalOpen(false) });
+      createMutation.mutate(values, { onSuccess: () => setModalOpen(false) });
     } else if (selected) {
-      updateMutation.mutate({
-        id: selected.id,
-        materialName: values.materialName,
-        unit: values.unit,
-        description: values.description,
-      }, { onSuccess: () => setModalOpen(false) });
+      updateMutation.mutate(
+        { id: selected.id, data: values },
+        { onSuccess: () => setModalOpen(false) }
+      );
     }
   };
 
@@ -281,11 +319,8 @@ export default function MaterialsPage() {
         }}
       >
         <CommonTable
-          pagination={{
-            ...pagination,
-            onChange: handlePageChange,
-          }}
           columns={getVisibleColumns()}
+          pagination={{ ...pagination, onChange: handlePageChange }}
           dataSource={filtered}
           loading={isLoading || isFetching || deleteMutation.isPending}
           paging

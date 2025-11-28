@@ -292,7 +292,7 @@ export default function RolePermissionsPage() {
           title={moduleNames[module] || module}
         >
           <CommonTable
-           
+
             sortable={false}
             dataSource={perms}
             columns={columns}

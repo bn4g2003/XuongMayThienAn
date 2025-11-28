@@ -271,11 +271,8 @@ export default function BankAccountsPage() {
         </Row>
 
         <CommonTable
-          pagination={{
-            ...pagination,
-            onChange: handlePageChange,
-          }}
           columns={getVisibleColumns()}
+          pagination={{ ...pagination, onChange: handlePageChange }}
           dataSource={filteredAccounts}
           loading={loading}
           paging

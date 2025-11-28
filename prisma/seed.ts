@@ -1,8 +1,6 @@
-import { WarehouseType } from '@/types/enum';
 import { faker } from '@faker-js/faker';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../src/prisma/client';
-
+import { PrismaClient } from '../src/generated/client';
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
@@ -186,7 +184,7 @@ async function main() {
         role_code: roleNames[i],
         role_name: faker.person.jobTitle(),
         description: faker.lorem.sentence(),
-
+        level: i + 1,
       },
     });
     roles.push(r);
@@ -231,6 +229,7 @@ async function main() {
   // 11. role_permissions (depends on roles, permissions)
   // ADMIN KHÔNG CẦN PHÂN QUYỀN TRONG DATABASE
   // ADMIN có toàn quyền tự động thông qua logic trong requirePermission()
+  console.log('⚠️ ADMIN không cần phân quyền trong database - có toàn quyền tự động');
 
   // Lấy role IDs
   const rolesMap = roles.reduce((acc, role) => {
@@ -321,7 +320,7 @@ async function main() {
         warehouse_name: faker.company.name(),
         branch_id: faker.helpers.arrayElement(branches).id,
         address: faker.location.streetAddress(),
-        warehouse_type: faker.helpers.arrayElement([...Object.values(WarehouseType)]),
+        warehouse_type: faker.helpers.arrayElement(['THANH_PHAM', 'NGUYEN_VAT_LIEU']),
       },
     });
     warehouses.push(w);

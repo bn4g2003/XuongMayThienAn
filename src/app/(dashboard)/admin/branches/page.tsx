@@ -8,7 +8,7 @@ import CommonTable from "@/components/CommonTable";
 import TableActions from "@/components/TableActions";
 import WrapperContent from "@/components/WrapperContent";
 import useColumn from "@/hooks/useColumn";
-import { BRANCH_KEYS, useBranches, useCreateBranch, useDeleteBranch, useUpdateBranch } from "@/hooks/useBranchTrpc";
+import { BRANCH_KEYS, useBranches } from "@/hooks/useCommonQuery";
 import { useFileExport } from "@/hooks/useFileExport";
 import useFilter from "@/hooks/useFilter";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -18,6 +18,7 @@ import {
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
 import { App, Tag } from "antd";
 import { useState } from "react";
@@ -34,21 +35,37 @@ export default function BranchesPage() {
   } = useFilter();
 
   const { data: branches = [], isLoading, isFetching } = useBranches();
+  const qc = useQueryClient();
 
-  const createMutation = useCreateBranch();
-  const updateMutation = useUpdateBranch();
-  const deleteMutation = useDeleteBranch();
+  const createMutation = useMutation({
+    mutationFn: (payload: BranchFormValues) =>
+      fetch("/api/admin/branches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).then((r) => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: BRANCH_KEYS.all }),
+  });
 
-  const branchesData = branches.map(branch => ({
-    ...branch,
-    address: branch.address || undefined,
-    phone: branch.phone || undefined,
-    email: branch.email || undefined,
-    isActive: branch.isActive ?? true,
-    createdAt: branch.createdAt?.toISOString() || undefined,
-  }));
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: BranchFormValues }) =>
+      fetch(`/api/admin/branches/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: BRANCH_KEYS.all }),
+  });
 
-  const filtered = applyFilter(branchesData as Branch[]);
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/admin/branches/${id}`, { method: "DELETE" }).then((r) =>
+        r.json()
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: BRANCH_KEYS.all }),
+  });
+
+  const filtered = applyFilter(branches as Branch[]);
 
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -78,36 +95,20 @@ export default function BranchesPage() {
       okText: "Xóa",
       cancelText: "Hủy",
       okButtonProps: { danger: true },
-      onOk: () => deleteMutation.mutate({ id }),
+      onOk: () => deleteMutation.mutate(id),
     });
   };
 
   const handleModalSubmit = (values: BranchFormValues) => {
     if (modalMode === "create") {
-      if (!values.branchCode) {
-        modal.error({ title: "Lỗi", content: "Mã chi nhánh là bắt buộc" });
-        return;
-      }
-      createMutation.mutate({
-        branchCode: values.branchCode,
-        branchName: values.branchName,
-        address: values.address,
-        phone: values.phone,
-        email: values.email,
-      }, {
+      createMutation.mutate(values, {
         onSuccess: () => setModalVisible(false),
       });
     } else if (selectedBranch) {
-      updateMutation.mutate({
-        id: selectedBranch.id,
-        branchName: values.branchName,
-        address: values.address,
-        phone: values.phone,
-        email: values.email,
-        isActive: values.isActive ?? true,
-      }, {
-        onSuccess: () => setModalVisible(false),
-      });
+      updateMutation.mutate(
+        { id: selectedBranch.id, data: values },
+        { onSuccess: () => setModalVisible(false) }
+      );
     }
   };
 
@@ -166,6 +167,10 @@ export default function BranchesPage() {
   const { columnsCheck, updateColumns, resetColumns, getVisibleColumns } =
     useColumn({ defaultColumns: columnsAll });
 
+  const confirmLoading = Boolean(
+    (createMutation as unknown as { isPending?: boolean }).isPending ||
+      (updateMutation as unknown as { isPending?: boolean }).isPending
+  );
   const { exportToXlsx } = useFileExport<Branch>(columnsAll);
 
   return (
@@ -239,10 +244,7 @@ export default function BranchesPage() {
         }}
       >
         <CommonTable
-          pagination={{
-            ...pagination,
-            onChange: handlePageChange,
-          }}
+          pagination={{ ...pagination, onChange: handlePageChange }}
           columns={getVisibleColumns()}
           dataSource={filtered as Branch[]}
           loading={isLoading || deleteMutation.isPending || isFetching}
@@ -271,7 +273,7 @@ export default function BranchesPage() {
         open={modalVisible}
         mode={modalMode}
         branch={selectedBranch}
-        confirmLoading={createMutation.isPending || updateMutation.isPending}
+        confirmLoading={confirmLoading}
         onCancel={() => setModalVisible(false)}
         onSubmit={handleModalSubmit}
       />
